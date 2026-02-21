@@ -1,0 +1,28 @@
+# --- Step 3 Submit File ---
+
+# 0. Environment
+environment = "HDF5_USE_FILE_LOCKING=FALSE"
+
+# 1. Executable
+executable = /data/condor_shared/users/ssued/RNOG_Image_Builder/venv/bin/python3
+
+# 2. Arguments
+arguments = -u $(myscript) \
+            --input_file $(input_file) \
+            --output_file $(output_file) \
+            --detector_file $(f_det) \
+            --time_window $(time_window) \
+            --time_bins $(time_bins) \
+            --bin_mode $(bin_mode) \
+            --noise_level $(noise_lvl) \
+            --clamp_v $(clamp_v)
+
+# 3. Logs
+log    = $(logdir)/step3_$(job_id).log
+output = $(logdir)/step3_$(job_id).out
+error  = $(logdir)/step3_$(job_id).out
+
+# 4. Resources
+request_cpus = 1
+request_memory = 2GB
+queue

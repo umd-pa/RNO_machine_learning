@@ -1,0 +1,11 @@
+job_logs/
+*.dag.*
+*.hdf5
+simulation_data/*
+!simulation_data/*.yaml
+!simulation_data/*.json
+wandb/
+architecture_testing/
+debug.ipynb
+__pycache__
+checkpoints/

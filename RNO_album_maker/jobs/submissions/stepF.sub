@@ -1,0 +1,20 @@
+# --- Final Submit File ---
+
+# 0. Environment
+environment = "HDF5_USE_FILE_LOCKING=FALSE"
+
+# 1. Executable
+executable = /data/condor_shared/users/ssued/RNOG_Image_Builder/venv/bin/python3
+
+# 2. Arguments
+arguments = -u $(myscript) --target_dir $(target_dir)
+
+# 3. Logs
+log    = $(logdir)/stepF.log
+output = $(logdir)/stepF.out
+error  = $(logdir)/stepF.out
+
+# 4. Resources
+request_cpus = 1
+request_memory = 2GB
+queue
