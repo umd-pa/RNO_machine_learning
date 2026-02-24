@@ -16,5 +16,5 @@ error  = $(logdir)/step1_$(job_id).out
 
 # 4. Resources
 request_cpus = 1
-request_memory = 1GB
+request_memory = 1500GB
 queue

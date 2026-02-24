@@ -16,5 +16,5 @@ error  = $(logdir)/stepF.out
 
 # 4. Resources
 request_cpus = 1
-request_memory = 2GB
+request_memory = 500MB
 queue
