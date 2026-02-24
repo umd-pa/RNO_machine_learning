@@ -83,7 +83,7 @@ def main():
         f.write("# HTCondor DAG - Simulation Shards Pipeline\n")
 
         for i in range(args.n_jobs):
-            jid = f"{i:06d}"
+            jid = f"{i:07d}"
             
             # --- DEFINE FILE PATHS ---
             # Intermediate files go to simulation_data
