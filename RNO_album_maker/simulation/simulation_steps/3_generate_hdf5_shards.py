@@ -282,7 +282,7 @@ def main():
         # 1. Image Data (The "Album")
         hf.create_dataset('album',
                           data=np.array(album, dtype='float32'),
-                          chunks=(1,(N_CHANNELS,args.time_bins,N_STATIONS)),       # 1 chunk = 1 image!
+                          chunks=(1,N_CHANNELS,args.time_bins,N_STATIONS),       # 1 chunk = 1 image!
                           shuffle=True)      # Improve compression
         
         # 2. Vertex Labels (XYZ coordinates)
