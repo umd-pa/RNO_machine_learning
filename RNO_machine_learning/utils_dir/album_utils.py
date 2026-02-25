@@ -1,12 +1,79 @@
 from h5py import File
+from tqdm import tqdm
+import h5py
 import numpy as np
+import glob
 import os
 import shutil
 import time
 import shutil
 import sys
 
-from RNOG_Image_Builder.machine_learning.utils_dir.dataset import spher_to_cart
+def inspect_hdf5_layout(file_path):
+    print(f"Inspecting: {file_path}")
+    print("-" * 50)
+    
+    with h5py.File(file_path, 'r') as f:
+        for key in f.keys():
+            item = f[key]
+            if isinstance(item, h5py.Dataset):
+                print(f"Dataset: {key}")
+                print(f"  - Shape:       {item.shape}")
+                print(f"  - Dtype:       {item.dtype}")
+                print(f"  - Chunk Size:  {item.chunks}")
+                print(f"  - Compression: {item.compression}")
+                
+                if item.chunks:
+                    # Calculate how many chunks exist in the file
+                    # This helps identify if there are too many small files
+                    n_chunks = 1
+                    for s, c in zip(item.shape, item.chunks):
+                        n_chunks *= (s // c + (1 if s % c != 0 else 0))
+                    print(f"  - Total Chunks: {int(n_chunks):,}")
+                else:
+                    print("  - [!] Warning: Dataset is NOT chunked (Contiguous layout)")
+                print("-" * 50)
+
+def rechunk_shards(input_dir, output_dir):
+    # 1. Create output directory if it doesn't exist
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+        print(f"Created directory: {output_dir}")
+
+    # 2. Get list of all .hdf5 files
+    files = sorted(glob.glob(os.path.join(input_dir, "*.hdf5")))
+    print(f"Found {len(files)} shards to process.")
+
+    # Optimized Chunk Shape: (1 sample, 24 bins, 1024 stations, 4 channels)
+    NEW_CHUNKS = (1, 24, 1024, 4)
+
+    for file_path in tqdm(files, desc="Rechunking Shards"):
+        file_name = os.path.basename(file_path)
+        output_path = os.path.join(output_dir, file_name)
+
+        with h5py.File(file_path, 'r') as f_in:
+            with h5py.File(output_path, 'w') as f_out:
+                # Copy attributes (metadata)
+                for attr_name, attr_value in f_in.attrs.items():
+                    f_out.attrs[attr_name] = attr_value
+
+                # Process each dataset
+                for key in f_in.keys():
+                    data = f_in[key]
+                    
+                    if key == 'album':
+                        # Apply the new chunking to the heavy image data
+                        f_out.create_dataset(
+                            key, 
+                            data=data, 
+                            chunks=NEW_CHUNKS,
+                            shuffle=True,      # Keeps it fast for the 4090
+                            compression=None   # High-speed I/O
+                        )
+                    else:
+                        # For small datasets (vertices, etc), 
+                        # just copy them as they are
+                        f_out.create_dataset(key, data=data, chunks=True)
 
 def copy_event(album_source, album_dest_path, event_idx):
     """
@@ -138,26 +205,3 @@ def copy_with_progress(src, dst, buffer_size=1024*1024):
     # Preserve metadata (timestamps) like copy2 does
     shutil.copystat(src, dst)
     print(f"Backup complete: {dst}")
-
-# --- Usage in your existing logic ---
-# if backup:
-#     backup_path = os.path.join(album_dir, f"backup_{album_name}")
-#     print(f'Backing up album to {backup_path}')
-#     if not os.path.exists(backup_path):
-#         copy_with_progress(os.path.join(album_dir, album_name), backup_path)
-
-def transform_to_cartesian(album_path):
-    with File(album_path, 'r+') as album:
-        num_events = len(album.keys())
-        for idx in range(num_events):
-            print(f'Changing labels from Spherical to Cartesian ({idx+1}/{num_events})', end='\r',flush=True)
-            event_key = f'event{idx+1}'
-            
-            # Read the data
-            label = album[event_key]['label'][:]
-            r, theta, phi = label
-            x,y,z = spher_to_cart([r, theta, phi])
-            
-            # Modify in place
-            album[event_key]['label'][:] = [x, y, z]
-        print('\nDone!')
