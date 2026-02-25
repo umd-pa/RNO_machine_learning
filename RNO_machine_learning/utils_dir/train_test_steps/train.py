@@ -1,7 +1,17 @@
+from torch.amp.grad_scaler import GradScaler
 import logging
 import torch
+import time
 
-def train_step(model: torch.nn.Module, data_loader: torch.utils.data.DataLoader, loss_fn: torch.nn.Module, optimizer: torch.optim.Optimizer, device: torch.device | str, logger: logging.Logger):
+def train_step(
+    model: torch.nn.Module, 
+    data_loader: torch.utils.data.DataLoader, 
+    loss_fn: torch.nn.Module, 
+    optimizer: torch.optim.Optimizer, 
+    device: torch.device | str, 
+    logger: logging.Logger, 
+    scaler: GradScaler | None = None
+):
     """
     Performs one training epoch over the entire batched dataset.
     
@@ -12,46 +22,48 @@ def train_step(model: torch.nn.Module, data_loader: torch.utils.data.DataLoader,
         optimizer: Optimization algorithm (e.g., Adam, SGD)
         device: Device to run computations on (CPU/CUDA)
         logging: Logger for logging training progress
+        scaler: GradScaler instance for adaptive gradient scaling in mixed precision
     
     Returns:
         float: Average training loss across all batches in the epoch
     """
-    # Set model to training mode - enables dropout, batch normalization training behavior
     model.train()
 
-    # Initialize list to store loss from each batch
     batch_train_losses = []
+    total_imgs = 0
+    start_time = time.time()
 
-    # Loop through all batches
     for batch, (X, y) in enumerate(data_loader):
-        # Move input features and labels to the specified device
-        X, y = X.to(device), y.to(device)
+        # Data Preparation
+        X, y = X.to(device, non_blocking=True), y.to(device, non_blocking=True)
         
-        # Forward pass
-        y_pred = model(X)
+        # Reset Gradients
+        optimizer.zero_grad(set_to_none=True)
 
-        # Squeeze labels. Only matters if batch size = 1. Will convert y from y.shape = [1,3] to [3]
-        y = y.squeeze()
+        # Forward Pass with Mixed Precision
+        with torch.autocast(device_type='cuda', dtype=torch.bfloat16):
+            y_pred = model(X)
+            y = y.squeeze(1)
+            loss = loss_fn(y_pred, y)
 
-        if logger.isEnabledFor(logging.DEBUG):
-            logger.debug(f'Batch {batch}:')
-            logger.debug([(yp, y0) for yp, y0 in zip(y_pred[0], y[0])])
+        # Backward Pass (Scaled to prevent underflow)
+        scaler.scale(loss).backward()
 
-        # Calculate loss
-        loss = loss_fn(y_pred, y)
+        # Optimizer Step (Unscales gradients and steps if they are valid)
+        scaler.step(optimizer)
+
+        # Update Scaler for the next batch
+        scaler.update()
+
+        # Metrics Tracking
+        total_imgs += len(X)
         batch_train_losses.append(loss.item())
 
-        # Backward pass
-        optimizer.zero_grad()
-        loss.backward()
-        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=10.0)
-        optimizer.step()
-
-        # for name, param in model.named_parameters(): For debugging
-        #     if param.grad is not None:
-        #         print(f"{name} - grad norm: {param.grad.norm().item()}")
-        #     else:
-        #         print(f"{name} - NO GRADIENT")
-
-    # Return the average loss across all batches in this training epoch
+        # Logging based on specified batch interval
+        if batch > 0 and batch % 50 == 0:
+            torch.cuda.synchronize()
+            elapsed = time.time() - start_time
+            avg_speed = total_imgs / elapsed
+            logger.info(f"TRAIN: Batch {batch:4d} | Speed: {avg_speed:7.2f} img/s | Loss: {loss.item():.4f}")
+            
     return sum(batch_train_losses) / len(batch_train_losses)

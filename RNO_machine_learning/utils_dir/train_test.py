@@ -2,7 +2,7 @@ from torch.optim.lr_scheduler import LRScheduler, ReduceLROnPlateau
 from .train_test_steps.train import train_step
 from .train_test_steps.test import test_step
 from .my_utils import save_checkpoint, load_checkpoint
-import numpy as np
+from torch.amp.grad_scaler import GradScaler
 import traceback
 import logging
 import wandb
@@ -43,6 +43,7 @@ def train_test(model: torch.nn.Module,
     loss_fn_name = loss_fn.__class__.__name__
     optimizer_name = optimizer.__class__.__name__
     
+
     # Log into wandb and initialize
     wandb.login()
     wandb.init(project=project_name,
@@ -78,6 +79,9 @@ def train_test(model: torch.nn.Module,
     test_loss = None
     test_loss_min = float('inf')
 
+    # Initialize GradScaler for mixed precision (bfloat16)
+    scaler = GradScaler('cuda') 
+
     with open(loss_file_path, 'a', newline='') as csvfile:
         writer = csv.writer(csvfile)
 
@@ -100,7 +104,8 @@ def train_test(model: torch.nn.Module,
                                             loss_fn=loss_fn,
                                             optimizer=optimizer,
                                             device=device,
-                                            logger=logger)
+                                            logger=logger,
+                                            scaler=scaler)
     
                 # --- Testing step ---
                 test_loss = test_step(model=model,
@@ -142,8 +147,7 @@ def train_test(model: torch.nn.Module,
                 # Log losses to wandb with EXPLICIT STEP
                 wandb.log({"Train Loss": train_loss,
                            "Test Loss": test_loss,
-                           "Epoch Time": epoch_end-epoch_start,
-                           "stop_file_exists": int(os.path.exists('STOP_TRAINING'))},
+                           "Epoch Time": epoch_end-epoch_start},
                            step=epoch) # Forces alignment with epoch number
                 
                 if epoch % checkpoint_freq == 0 and epoch != 0:
