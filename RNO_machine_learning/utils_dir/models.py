@@ -672,12 +672,14 @@ class RNO_four_late_non_linear_merge(nn.Module):
         # --- NORMALIZATION BLOCK ---
         # Forces output to (24 Depth, 128 Time, n Stations)
         self.normalization_block = nn.Sequential(
+            nn.Conv3d(in_channels=hidden_units, out_channels=1, kernel_size=1), # Kill hidden units!
+            nn.LeakyReLU(negative_slope=leak_factor),
             nn.AdaptiveMaxPool3d((24, temporal_res, station_num))
         )
 
         # --- LINEAR TDOA BLOCK ---
         # Channels (hidden) * Depth (24) * Time (temporal_res) * Stations (station_num)
-        self.flatten_size = hidden_units * 24 * temporal_res * station_num
+        self.flatten_size = 1 * 24 * temporal_res * station_num
         
         self.nonlinear_TDoA = nn.Sequential(
             nn.Flatten(),
