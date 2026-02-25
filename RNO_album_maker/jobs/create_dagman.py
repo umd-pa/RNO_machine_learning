@@ -12,7 +12,7 @@ def get_abs_path(rel_path):
 
 def main():
     parser = argparse.ArgumentParser(description="DAG Generator for NuRadioReco")
-    parser.add_argument('--n_jobs', default=250, type=int, help='Number of jobs to run')
+    parser.add_argument('--n_jobs', default=100, type=int, help='Number of jobs to run')
     parser.add_argument('--album_dir', type=str, required=True, 
                         help='The album directory where final shards are saved')
     parser.add_argument('--n_nu', required=True, help='Number of neutrinos to simulate')
