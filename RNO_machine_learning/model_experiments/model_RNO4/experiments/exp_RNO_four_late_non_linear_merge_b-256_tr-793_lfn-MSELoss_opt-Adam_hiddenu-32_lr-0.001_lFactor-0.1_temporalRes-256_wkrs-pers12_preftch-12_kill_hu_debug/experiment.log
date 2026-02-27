@@ -1,0 +1,351 @@
+[INFO: 02/24/2026 11:56:57 PM] Starting experiment: exp_RNO_four_late_non_linear_merge_b-256_tr-793_lfn-MSELoss_opt-Adam_hiddenu-32_lr-0.001_lFactor-0.1_temporalRes-256_wkrs-pers12_preftch-12_kill_hu_debug
+[INFO: 02/24/2026 11:56:57 PM] Device: cuda:1
+[INFO: 02/24/2026 11:56:57 PM] PyTorch version: 2.8.0+cu128
+[INFO: 02/24/2026 11:56:57 PM] Model: RNO_four_late_non_linear_merge
+[INFO: 02/24/2026 11:56:57 PM] Optimizer: Adam
+[INFO: 02/24/2026 11:56:57 PM] Loss function: MSELoss
+[INFO: 02/24/2026 11:57:02 PM] Saving checkpoint at epoch 0 in: experiments/exp_RNO_four_late_non_linear_merge_b-256_tr-793_lfn-MSELoss_opt-Adam_hiddenu-32_lr-0.001_lFactor-0.1_temporalRes-256_wkrs-pers12_preftch-12_kill_hu_debug/checkpoints/checkpoint_e0.pth
+[INFO: 02/24/2026 11:57:32 PM] TRAIN: Batch   50 | Speed:  435.78 img/s | Loss: 0.8663
+[INFO: 02/24/2026 11:57:39 PM] TRAIN: Batch  100 | Speed:  691.95 img/s | Loss: 0.7855
+[INFO: 02/24/2026 11:57:47 PM] TRAIN: Batch  150 | Speed:  863.49 img/s | Loss: 0.8145
+[INFO: 02/24/2026 11:57:54 PM] TRAIN: Batch  200 | Speed:  986.35 img/s | Loss: 0.6479
+[INFO: 02/24/2026 11:58:01 PM] TRAIN: Batch  250 | Speed: 1078.62 img/s | Loss: 0.6028
+[INFO: 02/24/2026 11:58:09 PM] TRAIN: Batch  300 | Speed: 1150.61 img/s | Loss: 0.4760
+[INFO: 02/24/2026 11:58:16 PM] TRAIN: Batch  350 | Speed: 1208.26 img/s | Loss: 0.5293
+[INFO: 02/24/2026 11:58:24 PM] TRAIN: Batch  400 | Speed: 1255.52 img/s | Loss: 0.4695
+[INFO: 02/24/2026 11:58:31 PM] TRAIN: Batch  450 | Speed: 1294.85 img/s | Loss: 0.4745
+[INFO: 02/24/2026 11:58:38 PM] TRAIN: Batch  500 | Speed: 1327.99 img/s | Loss: 0.4475
+[INFO: 02/24/2026 11:58:46 PM] TRAIN: Batch  550 | Speed: 1356.40 img/s | Loss: 0.4172
+[INFO: 02/24/2026 11:58:53 PM] TRAIN: Batch  600 | Speed: 1381.01 img/s | Loss: 0.4949
+[INFO: 02/24/2026 11:59:01 PM] TRAIN: Batch  650 | Speed: 1402.59 img/s | Loss: 0.3975
+[INFO: 02/24/2026 11:59:08 PM] TRAIN: Batch  700 | Speed: 1421.83 img/s | Loss: 0.5096
+[INFO: 02/24/2026 11:59:15 PM] TRAIN: Batch  750 | Speed: 1438.90 img/s | Loss: 0.4736
+[INFO: 02/24/2026 11:59:25 PM] TEST: Batch   10 | Speed:  961.62 img/s | Loss: 0.8323
+[INFO: 02/24/2026 11:59:25 PM] TEST: Batch   20 | Speed: 1599.60 img/s | Loss: 0.8431
+[INFO: 02/24/2026 11:59:25 PM] TEST: Batch   30 | Speed: 2091.49 img/s | Loss: 0.8492
+[INFO: 02/24/2026 11:59:26 PM] TEST: Batch   40 | Speed: 2482.71 img/s | Loss: 0.8981
+[INFO: 02/24/2026 11:59:26 PM] TEST: Batch   50 | Speed: 2801.66 img/s | Loss: 0.8756
+[INFO: 02/24/2026 11:59:27 PM] TEST: Batch   60 | Speed: 3066.18 img/s | Loss: 0.8657
+[INFO: 02/24/2026 11:59:27 PM] TEST: Batch   70 | Speed: 3289.82 img/s | Loss: 0.8690
+[INFO: 02/24/2026 11:59:28 PM] TEST: Batch   80 | Speed: 3482.47 img/s | Loss: 0.8958
+[INFO: 02/24/2026 11:59:28 PM] TEST: Batch   90 | Speed: 3649.58 img/s | Loss: 0.8687
+[INFO: 02/24/2026 11:59:31 PM] Saving checkpoint at epoch min_0 in: experiments/exp_RNO_four_late_non_linear_merge_b-256_tr-793_lfn-MSELoss_opt-Adam_hiddenu-32_lr-0.001_lFactor-0.1_temporalRes-256_wkrs-pers12_preftch-12_kill_hu_debug/checkpoints/checkpoint_emin_0.pth
+[INFO: 02/24/2026 11:59:31 PM] Epoch 0, Train Loss: 0.5787, Test Loss: 0.8788
+[INFO: 02/24/2026 11:59:40 PM] TRAIN: Batch   50 | Speed: 1556.43 img/s | Loss: 0.3871
+[INFO: 02/24/2026 11:59:47 PM] TRAIN: Batch  100 | Speed: 1636.22 img/s | Loss: 0.4496
+[INFO: 02/24/2026 11:59:55 PM] TRAIN: Batch  150 | Speed: 1665.68 img/s | Loss: 0.5112
+[INFO: 02/25/2026 12:00:02 AM] TRAIN: Batch  200 | Speed: 1680.74 img/s | Loss: 0.4175
+[INFO: 02/25/2026 12:00:10 AM] TRAIN: Batch  250 | Speed: 1689.91 img/s | Loss: 0.3867
+[INFO: 02/25/2026 12:00:17 AM] TRAIN: Batch  300 | Speed: 1696.07 img/s | Loss: 0.3823
+[INFO: 02/25/2026 12:00:24 AM] TRAIN: Batch  350 | Speed: 1700.27 img/s | Loss: 0.3950
+[INFO: 02/25/2026 12:00:32 AM] TRAIN: Batch  400 | Speed: 1703.51 img/s | Loss: 0.4030
+[INFO: 02/25/2026 12:00:39 AM] TRAIN: Batch  450 | Speed: 1706.12 img/s | Loss: 0.3843
+[INFO: 02/25/2026 12:00:47 AM] TRAIN: Batch  500 | Speed: 1708.12 img/s | Loss: 0.3995
+[INFO: 02/25/2026 12:00:54 AM] TRAIN: Batch  550 | Speed: 1709.80 img/s | Loss: 0.4599
+[INFO: 02/25/2026 12:01:01 AM] TRAIN: Batch  600 | Speed: 1711.11 img/s | Loss: 0.3600
+[INFO: 02/25/2026 12:01:09 AM] TRAIN: Batch  650 | Speed: 1712.38 img/s | Loss: 0.4448
+[INFO: 02/25/2026 12:01:16 AM] TRAIN: Batch  700 | Speed: 1713.67 img/s | Loss: 0.3849
+[INFO: 02/25/2026 12:01:24 AM] TRAIN: Batch  750 | Speed: 1714.80 img/s | Loss: 0.3667
+[INFO: 02/25/2026 12:01:31 AM] TEST: Batch   10 | Speed: 2619.05 img/s | Loss: 0.3438
+[INFO: 02/25/2026 12:01:31 AM] TEST: Batch   20 | Speed: 3320.75 img/s | Loss: 0.3230
+[INFO: 02/25/2026 12:01:32 AM] TEST: Batch   30 | Speed: 3705.54 img/s | Loss: 0.3742
+[INFO: 02/25/2026 12:01:32 AM] TEST: Batch   40 | Speed: 3949.80 img/s | Loss: 0.4056
+[INFO: 02/25/2026 12:01:33 AM] TEST: Batch   50 | Speed: 4135.98 img/s | Loss: 0.3620
+[INFO: 02/25/2026 12:01:33 AM] TEST: Batch   60 | Speed: 4304.97 img/s | Loss: 0.3652
+[INFO: 02/25/2026 12:01:34 AM] TEST: Batch   70 | Speed: 4434.52 img/s | Loss: 0.4082
+[INFO: 02/25/2026 12:01:34 AM] TEST: Batch   80 | Speed: 4458.03 img/s | Loss: 0.3969
+[INFO: 02/25/2026 12:01:35 AM] TEST: Batch   90 | Speed: 4491.95 img/s | Loss: 0.3363
+[INFO: 02/25/2026 12:01:35 AM] Saving checkpoint at epoch min_1 in: experiments/exp_RNO_four_late_non_linear_merge_b-256_tr-793_lfn-MSELoss_opt-Adam_hiddenu-32_lr-0.001_lFactor-0.1_temporalRes-256_wkrs-pers12_preftch-12_kill_hu_debug/checkpoints/checkpoint_emin_1.pth
+[INFO: 02/25/2026 12:01:36 AM] Removed previous best checkpoint: checkpoint_emin_0.pth
+[INFO: 02/25/2026 12:01:36 AM] Epoch 1, Train Loss: 0.3920, Test Loss: 0.3690
+[INFO: 02/25/2026 12:01:45 AM] TRAIN: Batch   50 | Speed: 1561.49 img/s | Loss: 0.3119
+[INFO: 02/25/2026 12:01:52 AM] TRAIN: Batch  100 | Speed: 1639.61 img/s | Loss: 0.3288
+[INFO: 02/25/2026 12:01:59 AM] TRAIN: Batch  150 | Speed: 1667.56 img/s | Loss: 0.3444
+[INFO: 02/25/2026 12:02:07 AM] TRAIN: Batch  200 | Speed: 1681.99 img/s | Loss: 0.3629
+[INFO: 02/25/2026 12:02:14 AM] TRAIN: Batch  250 | Speed: 1690.76 img/s | Loss: 0.3540
+[INFO: 02/25/2026 12:02:22 AM] TRAIN: Batch  300 | Speed: 1696.64 img/s | Loss: 0.3405
+[INFO: 02/25/2026 12:02:29 AM] TRAIN: Batch  350 | Speed: 1700.95 img/s | Loss: 0.4158
+[INFO: 02/25/2026 12:02:36 AM] TRAIN: Batch  400 | Speed: 1704.12 img/s | Loss: 0.3995
+[INFO: 02/25/2026 12:02:44 AM] TRAIN: Batch  450 | Speed: 1706.60 img/s | Loss: 0.3329
+[INFO: 02/25/2026 12:02:51 AM] TRAIN: Batch  500 | Speed: 1708.55 img/s | Loss: 0.3299
+[INFO: 02/25/2026 12:02:59 AM] TRAIN: Batch  550 | Speed: 1710.18 img/s | Loss: 0.2860
+[INFO: 02/25/2026 12:03:06 AM] TRAIN: Batch  600 | Speed: 1711.54 img/s | Loss: 0.4980
+[INFO: 02/25/2026 12:03:14 AM] TRAIN: Batch  650 | Speed: 1712.76 img/s | Loss: 0.3083
+[INFO: 02/25/2026 12:03:21 AM] TRAIN: Batch  700 | Speed: 1714.13 img/s | Loss: 0.4963
+[INFO: 02/25/2026 12:03:28 AM] TRAIN: Batch  750 | Speed: 1715.27 img/s | Loss: 0.3890
+[INFO: 02/25/2026 12:03:36 AM] TEST: Batch   10 | Speed: 2421.14 img/s | Loss: 0.3114
+[INFO: 02/25/2026 12:03:36 AM] TEST: Batch   20 | Speed: 3338.53 img/s | Loss: 0.3134
+[INFO: 02/25/2026 12:03:37 AM] TEST: Batch   30 | Speed: 3758.05 img/s | Loss: 0.3569
+[INFO: 02/25/2026 12:03:37 AM] TEST: Batch   40 | Speed: 4020.05 img/s | Loss: 0.3880
+[INFO: 02/25/2026 12:03:38 AM] TEST: Batch   50 | Speed: 4254.02 img/s | Loss: 0.3472
+[INFO: 02/25/2026 12:03:38 AM] TEST: Batch   60 | Speed: 4442.62 img/s | Loss: 0.3333
+[INFO: 02/25/2026 12:03:39 AM] TEST: Batch   70 | Speed: 4525.62 img/s | Loss: 0.3621
+[INFO: 02/25/2026 12:03:39 AM] TEST: Batch   80 | Speed: 4514.53 img/s | Loss: 0.3731
+[INFO: 02/25/2026 12:03:40 AM] TEST: Batch   90 | Speed: 4636.33 img/s | Loss: 0.3116
+[INFO: 02/25/2026 12:03:40 AM] Saving checkpoint at epoch min_2 in: experiments/exp_RNO_four_late_non_linear_merge_b-256_tr-793_lfn-MSELoss_opt-Adam_hiddenu-32_lr-0.001_lFactor-0.1_temporalRes-256_wkrs-pers12_preftch-12_kill_hu_debug/checkpoints/checkpoint_emin_2.pth
+[INFO: 02/25/2026 12:03:41 AM] Removed previous best checkpoint: checkpoint_emin_1.pth
+[INFO: 02/25/2026 12:03:41 AM] Epoch 2, Train Loss: 0.3580, Test Loss: 0.3463
+[INFO: 02/25/2026 12:03:49 AM] TRAIN: Batch   50 | Speed: 1532.31 img/s | Loss: 0.3400
+[INFO: 02/25/2026 12:03:57 AM] TRAIN: Batch  100 | Speed: 1622.63 img/s | Loss: 0.2958
+[INFO: 02/25/2026 12:04:04 AM] TRAIN: Batch  150 | Speed: 1655.71 img/s | Loss: 0.2843
+[INFO: 02/25/2026 12:04:11 AM] TRAIN: Batch  200 | Speed: 1672.81 img/s | Loss: 0.3131
+[INFO: 02/25/2026 12:04:19 AM] TRAIN: Batch  250 | Speed: 1683.19 img/s | Loss: 0.3137
+[INFO: 02/25/2026 12:04:26 AM] TRAIN: Batch  300 | Speed: 1690.38 img/s | Loss: 0.3581
+[INFO: 02/25/2026 12:04:34 AM] TRAIN: Batch  350 | Speed: 1695.60 img/s | Loss: 0.3115
+[INFO: 02/25/2026 12:04:41 AM] TRAIN: Batch  400 | Speed: 1699.37 img/s | Loss: 0.3307
+[INFO: 02/25/2026 12:04:48 AM] TRAIN: Batch  450 | Speed: 1702.35 img/s | Loss: 0.2747
+[INFO: 02/25/2026 12:04:56 AM] TRAIN: Batch  500 | Speed: 1704.69 img/s | Loss: 0.2764
+[INFO: 02/25/2026 12:05:03 AM] TRAIN: Batch  550 | Speed: 1706.66 img/s | Loss: 0.3159
+[INFO: 02/25/2026 12:05:11 AM] TRAIN: Batch  600 | Speed: 1708.29 img/s | Loss: 0.2869
+[INFO: 02/25/2026 12:05:18 AM] TRAIN: Batch  650 | Speed: 1709.80 img/s | Loss: 0.3763
+[INFO: 02/25/2026 12:05:25 AM] TRAIN: Batch  700 | Speed: 1711.37 img/s | Loss: 0.2948
+[INFO: 02/25/2026 12:05:33 AM] TRAIN: Batch  750 | Speed: 1712.68 img/s | Loss: 0.3299
+[INFO: 02/25/2026 12:05:40 AM] TEST: Batch   10 | Speed: 2347.21 img/s | Loss: 0.3043
+[INFO: 02/25/2026 12:05:41 AM] TEST: Batch   20 | Speed: 3146.25 img/s | Loss: 0.2919
+[INFO: 02/25/2026 12:05:41 AM] TEST: Batch   30 | Speed: 3597.74 img/s | Loss: 0.3359
+[INFO: 02/25/2026 12:05:42 AM] TEST: Batch   40 | Speed: 3888.21 img/s | Loss: 0.3729
+[INFO: 02/25/2026 12:05:42 AM] TEST: Batch   50 | Speed: 4163.43 img/s | Loss: 0.3366
+[INFO: 02/25/2026 12:05:43 AM] TEST: Batch   60 | Speed: 4372.02 img/s | Loss: 0.3206
+[INFO: 02/25/2026 12:05:43 AM] TEST: Batch   70 | Speed: 4535.57 img/s | Loss: 0.3667
+[INFO: 02/25/2026 12:05:44 AM] TEST: Batch   80 | Speed: 4634.82 img/s | Loss: 0.3429
+[INFO: 02/25/2026 12:05:44 AM] TEST: Batch   90 | Speed: 4732.57 img/s | Loss: 0.3102
+[INFO: 02/25/2026 12:05:44 AM] Saving checkpoint at epoch min_3 in: experiments/exp_RNO_four_late_non_linear_merge_b-256_tr-793_lfn-MSELoss_opt-Adam_hiddenu-32_lr-0.001_lFactor-0.1_temporalRes-256_wkrs-pers12_preftch-12_kill_hu_debug/checkpoints/checkpoint_emin_3.pth
+[INFO: 02/25/2026 12:05:45 AM] Removed previous best checkpoint: checkpoint_emin_2.pth
+[INFO: 02/25/2026 12:05:45 AM] Epoch 3, Train Loss: 0.3269, Test Loss: 0.3324
+[INFO: 02/25/2026 12:05:53 AM] TRAIN: Batch   50 | Speed: 1570.76 img/s | Loss: 0.2682
+[INFO: 02/25/2026 12:06:01 AM] TRAIN: Batch  100 | Speed: 1644.52 img/s | Loss: 0.3507
+[INFO: 02/25/2026 12:06:08 AM] TRAIN: Batch  150 | Speed: 1671.03 img/s | Loss: 0.2836
+[INFO: 02/25/2026 12:06:16 AM] TRAIN: Batch  200 | Speed: 1684.68 img/s | Loss: 0.3121
+[INFO: 02/25/2026 12:06:23 AM] TRAIN: Batch  250 | Speed: 1693.02 img/s | Loss: 0.2853
+[INFO: 02/25/2026 12:06:31 AM] TRAIN: Batch  300 | Speed: 1698.41 img/s | Loss: 0.2838
+[INFO: 02/25/2026 12:06:38 AM] TRAIN: Batch  350 | Speed: 1702.44 img/s | Loss: 0.3179
+[INFO: 02/25/2026 12:06:45 AM] TRAIN: Batch  400 | Speed: 1705.41 img/s | Loss: 0.4201
+[INFO: 02/25/2026 12:06:53 AM] TRAIN: Batch  450 | Speed: 1707.79 img/s | Loss: 0.3552
+[INFO: 02/25/2026 12:07:00 AM] TRAIN: Batch  500 | Speed: 1709.67 img/s | Loss: 0.3627
+[INFO: 02/25/2026 12:07:08 AM] TRAIN: Batch  550 | Speed: 1711.21 img/s | Loss: 0.3148
+[INFO: 02/25/2026 12:07:15 AM] TRAIN: Batch  600 | Speed: 1712.53 img/s | Loss: 0.3165
+[INFO: 02/25/2026 12:07:22 AM] TRAIN: Batch  650 | Speed: 1713.72 img/s | Loss: 0.3221
+[INFO: 02/25/2026 12:07:30 AM] TRAIN: Batch  700 | Speed: 1715.05 img/s | Loss: 0.2950
+[INFO: 02/25/2026 12:07:37 AM] TRAIN: Batch  750 | Speed: 1716.16 img/s | Loss: 0.2995
+[INFO: 02/25/2026 12:07:45 AM] TEST: Batch   10 | Speed: 2294.77 img/s | Loss: 0.2780
+[INFO: 02/25/2026 12:07:45 AM] TEST: Batch   20 | Speed: 3104.89 img/s | Loss: 0.2880
+[INFO: 02/25/2026 12:07:46 AM] TEST: Batch   30 | Speed: 3478.23 img/s | Loss: 0.3356
+[INFO: 02/25/2026 12:07:46 AM] TEST: Batch   40 | Speed: 3861.59 img/s | Loss: 0.3607
+[INFO: 02/25/2026 12:07:47 AM] TEST: Batch   50 | Speed: 4139.10 img/s | Loss: 0.3155
+[INFO: 02/25/2026 12:07:47 AM] TEST: Batch   60 | Speed: 4349.16 img/s | Loss: 0.3111
+[INFO: 02/25/2026 12:07:47 AM] TEST: Batch   70 | Speed: 4514.97 img/s | Loss: 0.3538
+[INFO: 02/25/2026 12:07:48 AM] TEST: Batch   80 | Speed: 4565.43 img/s | Loss: 0.3445
+[INFO: 02/25/2026 12:07:48 AM] TEST: Batch   90 | Speed: 4673.12 img/s | Loss: 0.2990
+[INFO: 02/25/2026 12:07:49 AM] Saving checkpoint at epoch min_4 in: experiments/exp_RNO_four_late_non_linear_merge_b-256_tr-793_lfn-MSELoss_opt-Adam_hiddenu-32_lr-0.001_lFactor-0.1_temporalRes-256_wkrs-pers12_preftch-12_kill_hu_debug/checkpoints/checkpoint_emin_4.pth
+[INFO: 02/25/2026 12:07:50 AM] Removed previous best checkpoint: checkpoint_emin_3.pth
+[INFO: 02/25/2026 12:07:50 AM] Epoch 4, Train Loss: 0.3145, Test Loss: 0.3211
+[INFO: 02/25/2026 12:07:58 AM] TRAIN: Batch   50 | Speed: 1569.18 img/s | Loss: 0.2664
+[INFO: 02/25/2026 12:08:05 AM] TRAIN: Batch  100 | Speed: 1643.68 img/s | Loss: 0.2726
+[INFO: 02/25/2026 12:08:13 AM] TRAIN: Batch  150 | Speed: 1670.53 img/s | Loss: 0.3348
+[INFO: 02/25/2026 12:08:20 AM] TRAIN: Batch  200 | Speed: 1684.25 img/s | Loss: 0.3048
+[INFO: 02/25/2026 12:08:27 AM] TRAIN: Batch  250 | Speed: 1692.71 img/s | Loss: 0.3137
+[INFO: 02/25/2026 12:08:35 AM] TRAIN: Batch  300 | Speed: 1698.23 img/s | Loss: 0.3000
+[INFO: 02/25/2026 12:08:42 AM] TRAIN: Batch  350 | Speed: 1702.32 img/s | Loss: 0.2885
+[INFO: 02/25/2026 12:08:50 AM] TRAIN: Batch  400 | Speed: 1705.37 img/s | Loss: 0.2871
+[INFO: 02/25/2026 12:08:57 AM] TRAIN: Batch  450 | Speed: 1707.79 img/s | Loss: 0.3043
+[INFO: 02/25/2026 12:09:05 AM] TRAIN: Batch  500 | Speed: 1709.64 img/s | Loss: 0.2761
+[INFO: 02/25/2026 12:09:12 AM] TRAIN: Batch  550 | Speed: 1711.20 img/s | Loss: 0.2907
+[INFO: 02/25/2026 12:09:19 AM] TRAIN: Batch  600 | Speed: 1712.51 img/s | Loss: 0.2979
+[INFO: 02/25/2026 12:09:27 AM] TRAIN: Batch  650 | Speed: 1713.76 img/s | Loss: 0.3110
+[INFO: 02/25/2026 12:09:34 AM] TRAIN: Batch  700 | Speed: 1715.09 img/s | Loss: 0.3087
+[INFO: 02/25/2026 12:09:42 AM] TRAIN: Batch  750 | Speed: 1716.25 img/s | Loss: 0.3004
+[INFO: 02/25/2026 12:09:49 AM] TEST: Batch   10 | Speed: 2295.73 img/s | Loss: 0.2745
+[INFO: 02/25/2026 12:09:49 AM] TEST: Batch   20 | Speed: 3196.67 img/s | Loss: 0.2839
+[INFO: 02/25/2026 12:09:50 AM] TEST: Batch   30 | Speed: 3595.92 img/s | Loss: 0.3407
+[INFO: 02/25/2026 12:09:50 AM] TEST: Batch   40 | Speed: 3871.97 img/s | Loss: 0.3730
+[INFO: 02/25/2026 12:09:51 AM] TEST: Batch   50 | Speed: 4148.59 img/s | Loss: 0.3235
+[INFO: 02/25/2026 12:09:51 AM] TEST: Batch   60 | Speed: 4317.69 img/s | Loss: 0.3232
+[INFO: 02/25/2026 12:09:52 AM] TEST: Batch   70 | Speed: 4355.44 img/s | Loss: 0.3397
+[INFO: 02/25/2026 12:09:52 AM] TEST: Batch   80 | Speed: 4452.39 img/s | Loss: 0.3418
+[INFO: 02/25/2026 12:09:53 AM] TEST: Batch   90 | Speed: 4571.91 img/s | Loss: 0.3139
+[INFO: 02/25/2026 12:09:53 AM] Epoch 5, Train Loss: 0.2947, Test Loss: 0.3232
+[INFO: 02/25/2026 12:10:02 AM] TRAIN: Batch   50 | Speed: 1568.55 img/s | Loss: 0.2640
+[INFO: 02/25/2026 12:10:09 AM] TRAIN: Batch  100 | Speed: 1643.29 img/s | Loss: 0.2773
+[INFO: 02/25/2026 12:10:16 AM] TRAIN: Batch  150 | Speed: 1670.36 img/s | Loss: 0.2872
+[INFO: 02/25/2026 12:10:24 AM] TRAIN: Batch  200 | Speed: 1684.12 img/s | Loss: 0.2444
+[INFO: 02/25/2026 12:10:31 AM] TRAIN: Batch  250 | Speed: 1692.45 img/s | Loss: 0.2946
+[INFO: 02/25/2026 12:10:39 AM] TRAIN: Batch  300 | Speed: 1698.02 img/s | Loss: 0.2944
+[INFO: 02/25/2026 12:10:46 AM] TRAIN: Batch  350 | Speed: 1702.13 img/s | Loss: 0.3004
+[INFO: 02/25/2026 12:10:53 AM] TRAIN: Batch  400 | Speed: 1705.27 img/s | Loss: 0.2894
+[INFO: 02/25/2026 12:11:01 AM] TRAIN: Batch  450 | Speed: 1707.59 img/s | Loss: 0.2842
+[INFO: 02/25/2026 12:11:08 AM] TRAIN: Batch  500 | Speed: 1709.47 img/s | Loss: 0.3315
+[INFO: 02/25/2026 12:11:16 AM] TRAIN: Batch  550 | Speed: 1711.04 img/s | Loss: 0.3045
+[INFO: 02/25/2026 12:11:23 AM] TRAIN: Batch  600 | Speed: 1712.36 img/s | Loss: 0.3031
+[INFO: 02/25/2026 12:11:30 AM] TRAIN: Batch  650 | Speed: 1713.63 img/s | Loss: 0.3067
+[INFO: 02/25/2026 12:11:38 AM] TRAIN: Batch  700 | Speed: 1714.90 img/s | Loss: 0.2825
+[INFO: 02/25/2026 12:11:45 AM] TRAIN: Batch  750 | Speed: 1716.05 img/s | Loss: 0.2658
+[INFO: 02/25/2026 12:11:53 AM] TEST: Batch   10 | Speed: 2542.60 img/s | Loss: 0.2732
+[INFO: 02/25/2026 12:11:53 AM] TEST: Batch   20 | Speed: 3262.49 img/s | Loss: 0.2714
+[INFO: 02/25/2026 12:11:54 AM] TEST: Batch   30 | Speed: 3700.95 img/s | Loss: 0.3188
+[INFO: 02/25/2026 12:11:54 AM] TEST: Batch   40 | Speed: 3938.53 img/s | Loss: 0.3561
+[INFO: 02/25/2026 12:11:55 AM] TEST: Batch   50 | Speed: 4140.64 img/s | Loss: 0.3125
+[INFO: 02/25/2026 12:11:55 AM] TEST: Batch   60 | Speed: 4350.72 img/s | Loss: 0.2983
+[INFO: 02/25/2026 12:11:56 AM] TEST: Batch   70 | Speed: 4470.38 img/s | Loss: 0.3525
+[INFO: 02/25/2026 12:11:56 AM] TEST: Batch   80 | Speed: 4605.21 img/s | Loss: 0.3396
+[INFO: 02/25/2026 12:11:56 AM] TEST: Batch   90 | Speed: 4675.11 img/s | Loss: 0.2984
+[INFO: 02/25/2026 12:11:57 AM] Saving checkpoint at epoch min_6 in: experiments/exp_RNO_four_late_non_linear_merge_b-256_tr-793_lfn-MSELoss_opt-Adam_hiddenu-32_lr-0.001_lFactor-0.1_temporalRes-256_wkrs-pers12_preftch-12_kill_hu_debug/checkpoints/checkpoint_emin_6.pth
+[INFO: 02/25/2026 12:11:58 AM] Removed previous best checkpoint: checkpoint_emin_4.pth
+[INFO: 02/25/2026 12:11:58 AM] Epoch 6, Train Loss: 0.2907, Test Loss: 0.3158
+[INFO: 02/25/2026 12:12:06 AM] TRAIN: Batch   50 | Speed: 1514.20 img/s | Loss: 0.2419
+[INFO: 02/25/2026 12:12:14 AM] TRAIN: Batch  100 | Speed: 1611.89 img/s | Loss: 0.2852
+[INFO: 02/25/2026 12:12:21 AM] TRAIN: Batch  150 | Speed: 1648.12 img/s | Loss: 0.2596
+[INFO: 02/25/2026 12:12:28 AM] TRAIN: Batch  200 | Speed: 1666.85 img/s | Loss: 0.2605
+[INFO: 02/25/2026 12:12:36 AM] TRAIN: Batch  250 | Speed: 1678.43 img/s | Loss: 0.2829
+[INFO: 02/25/2026 12:12:43 AM] TRAIN: Batch  300 | Speed: 1686.25 img/s | Loss: 0.2786
+[INFO: 02/25/2026 12:12:51 AM] TRAIN: Batch  350 | Speed: 1691.76 img/s | Loss: 0.3373
+[INFO: 02/25/2026 12:12:58 AM] TRAIN: Batch  400 | Speed: 1695.98 img/s | Loss: 0.2850
+[INFO: 02/25/2026 12:13:06 AM] TRAIN: Batch  450 | Speed: 1699.27 img/s | Loss: 0.2818
+[INFO: 02/25/2026 12:13:13 AM] TRAIN: Batch  500 | Speed: 1701.97 img/s | Loss: 0.2992
+[INFO: 02/25/2026 12:13:20 AM] TRAIN: Batch  550 | Speed: 1704.14 img/s | Loss: 0.2854
+[INFO: 02/25/2026 12:13:28 AM] TRAIN: Batch  600 | Speed: 1705.97 img/s | Loss: 0.2844
+[INFO: 02/25/2026 12:13:35 AM] TRAIN: Batch  650 | Speed: 1707.71 img/s | Loss: 0.3036
+[INFO: 02/25/2026 12:13:43 AM] TRAIN: Batch  700 | Speed: 1709.36 img/s | Loss: 0.2908
+[INFO: 02/25/2026 12:13:50 AM] TRAIN: Batch  750 | Speed: 1710.81 img/s | Loss: 0.3249
+[INFO: 02/25/2026 12:13:58 AM] TEST: Batch   10 | Speed: 2170.75 img/s | Loss: 0.2677
+[INFO: 02/25/2026 12:13:58 AM] TEST: Batch   20 | Speed: 2933.10 img/s | Loss: 0.2777
+[INFO: 02/25/2026 12:13:59 AM] TEST: Batch   30 | Speed: 3277.43 img/s | Loss: 0.3237
+[INFO: 02/25/2026 12:13:59 AM] TEST: Batch   40 | Speed: 3576.22 img/s | Loss: 0.3533
+[INFO: 02/25/2026 12:14:00 AM] TEST: Batch   50 | Speed: 3871.25 img/s | Loss: 0.2966
+[INFO: 02/25/2026 12:14:00 AM] TEST: Batch   60 | Speed: 4099.65 img/s | Loss: 0.3109
+[INFO: 02/25/2026 12:14:00 AM] TEST: Batch   70 | Speed: 4282.26 img/s | Loss: 0.3423
+[INFO: 02/25/2026 12:14:01 AM] TEST: Batch   80 | Speed: 4434.09 img/s | Loss: 0.3355
+[INFO: 02/25/2026 12:14:01 AM] TEST: Batch   90 | Speed: 4558.16 img/s | Loss: 0.2908
+[INFO: 02/25/2026 12:14:02 AM] Saving checkpoint at epoch min_7 in: experiments/exp_RNO_four_late_non_linear_merge_b-256_tr-793_lfn-MSELoss_opt-Adam_hiddenu-32_lr-0.001_lFactor-0.1_temporalRes-256_wkrs-pers12_preftch-12_kill_hu_debug/checkpoints/checkpoint_emin_7.pth
+[INFO: 02/25/2026 12:14:02 AM] Removed previous best checkpoint: checkpoint_emin_6.pth
+[INFO: 02/25/2026 12:14:02 AM] Epoch 7, Train Loss: 0.2752, Test Loss: 0.3143
+[INFO: 02/25/2026 12:14:11 AM] TRAIN: Batch   50 | Speed: 1567.14 img/s | Loss: 0.2767
+[INFO: 02/25/2026 12:14:18 AM] TRAIN: Batch  100 | Speed: 1642.24 img/s | Loss: 0.3121
+[INFO: 02/25/2026 12:14:26 AM] TRAIN: Batch  150 | Speed: 1669.39 img/s | Loss: 0.2340
+[INFO: 02/25/2026 12:14:33 AM] TRAIN: Batch  200 | Speed: 1683.36 img/s | Loss: 0.2529
+[INFO: 02/25/2026 12:14:40 AM] TRAIN: Batch  250 | Speed: 1691.91 img/s | Loss: 0.2727
+[INFO: 02/25/2026 12:14:48 AM] TRAIN: Batch  300 | Speed: 1697.76 img/s | Loss: 0.2783
+[INFO: 02/25/2026 12:14:55 AM] TRAIN: Batch  350 | Speed: 1701.86 img/s | Loss: 0.2609
+[INFO: 02/25/2026 12:15:03 AM] TRAIN: Batch  400 | Speed: 1705.07 img/s | Loss: 0.2904
+[INFO: 02/25/2026 12:15:10 AM] TRAIN: Batch  450 | Speed: 1707.50 img/s | Loss: 0.2465
+[INFO: 02/25/2026 12:15:17 AM] TRAIN: Batch  500 | Speed: 1709.48 img/s | Loss: 0.2695
+[INFO: 02/25/2026 12:15:25 AM] TRAIN: Batch  550 | Speed: 1711.12 img/s | Loss: 0.2541
+[INFO: 02/25/2026 12:15:32 AM] TRAIN: Batch  600 | Speed: 1712.43 img/s | Loss: 0.2544
+[INFO: 02/25/2026 12:15:40 AM] TRAIN: Batch  650 | Speed: 1713.74 img/s | Loss: 0.2695
+[INFO: 02/25/2026 12:15:47 AM] TRAIN: Batch  700 | Speed: 1715.04 img/s | Loss: 0.2958
+[INFO: 02/25/2026 12:15:54 AM] TRAIN: Batch  750 | Speed: 1716.14 img/s | Loss: 0.2601
+[INFO: 02/25/2026 12:16:02 AM] TEST: Batch   10 | Speed: 2358.52 img/s | Loss: 0.2831
+[INFO: 02/25/2026 12:16:02 AM] TEST: Batch   20 | Speed: 3159.08 img/s | Loss: 0.2883
+[INFO: 02/25/2026 12:16:03 AM] TEST: Batch   30 | Speed: 3616.59 img/s | Loss: 0.3404
+[INFO: 02/25/2026 12:16:03 AM] TEST: Batch   40 | Speed: 3897.15 img/s | Loss: 0.3667
+[INFO: 02/25/2026 12:16:04 AM] TEST: Batch   50 | Speed: 4170.89 img/s | Loss: 0.3085
+[INFO: 02/25/2026 12:16:04 AM] TEST: Batch   60 | Speed: 4375.55 img/s | Loss: 0.3018
+[INFO: 02/25/2026 12:16:05 AM] TEST: Batch   70 | Speed: 4359.59 img/s | Loss: 0.3513
+[INFO: 02/25/2026 12:16:05 AM] TEST: Batch   80 | Speed: 4478.99 img/s | Loss: 0.3456
+[INFO: 02/25/2026 12:16:06 AM] TEST: Batch   90 | Speed: 4555.43 img/s | Loss: 0.2900
+[INFO: 02/25/2026 12:16:06 AM] Epoch 8, Train Loss: 0.2710, Test Loss: 0.3162
+[INFO: 02/25/2026 12:16:15 AM] TRAIN: Batch   50 | Speed: 1541.44 img/s | Loss: 0.2070
+[INFO: 02/25/2026 12:16:22 AM] TRAIN: Batch  100 | Speed: 1628.10 img/s | Loss: 0.2637
+[INFO: 02/25/2026 12:16:29 AM] TRAIN: Batch  150 | Speed: 1659.55 img/s | Loss: 0.2338
+[INFO: 02/25/2026 12:16:37 AM] TRAIN: Batch  200 | Speed: 1675.91 img/s | Loss: 0.2248
+[INFO: 02/25/2026 12:16:44 AM] TRAIN: Batch  250 | Speed: 1685.85 img/s | Loss: 0.2641
+[INFO: 02/25/2026 12:16:52 AM] TRAIN: Batch  300 | Speed: 1692.42 img/s | Loss: 0.2568
+[INFO: 02/25/2026 12:16:59 AM] TRAIN: Batch  350 | Speed: 1697.22 img/s | Loss: 0.2329
+[INFO: 02/25/2026 12:17:07 AM] TRAIN: Batch  400 | Speed: 1700.88 img/s | Loss: 0.2519
+[INFO: 02/25/2026 12:17:14 AM] TRAIN: Batch  450 | Speed: 1703.76 img/s | Loss: 0.2508
+[INFO: 02/25/2026 12:17:21 AM] TRAIN: Batch  500 | Speed: 1706.03 img/s | Loss: 0.2607
+[INFO: 02/25/2026 12:17:29 AM] TRAIN: Batch  550 | Speed: 1707.93 img/s | Loss: 0.2230
+[INFO: 02/25/2026 12:17:36 AM] TRAIN: Batch  600 | Speed: 1709.48 img/s | Loss: 0.2905
+[INFO: 02/25/2026 12:17:44 AM] TRAIN: Batch  650 | Speed: 1711.01 img/s | Loss: 0.2819
+[INFO: 02/25/2026 12:17:51 AM] TRAIN: Batch  700 | Speed: 1712.51 img/s | Loss: 0.2516
+[INFO: 02/25/2026 12:17:58 AM] TRAIN: Batch  750 | Speed: 1713.77 img/s | Loss: 0.2955
+[INFO: 02/25/2026 12:18:06 AM] TEST: Batch   10 | Speed: 2410.69 img/s | Loss: 0.2685
+[INFO: 02/25/2026 12:18:06 AM] TEST: Batch   20 | Speed: 3278.77 img/s | Loss: 0.2708
+[INFO: 02/25/2026 12:18:07 AM] TEST: Batch   30 | Speed: 3697.99 img/s | Loss: 0.3213
+[INFO: 02/25/2026 12:18:07 AM] TEST: Batch   40 | Speed: 3909.02 img/s | Loss: 0.3614
+[INFO: 02/25/2026 12:18:08 AM] TEST: Batch   50 | Speed: 4182.08 img/s | Loss: 0.2992
+[INFO: 02/25/2026 12:18:08 AM] TEST: Batch   60 | Speed: 4389.13 img/s | Loss: 0.2984
+[INFO: 02/25/2026 12:18:09 AM] TEST: Batch   70 | Speed: 4551.23 img/s | Loss: 0.3427
+[INFO: 02/25/2026 12:18:09 AM] TEST: Batch   80 | Speed: 4607.76 img/s | Loss: 0.3288
+[INFO: 02/25/2026 12:18:10 AM] TEST: Batch   90 | Speed: 4676.53 img/s | Loss: 0.2935
+[INFO: 02/25/2026 12:18:10 AM] Saving checkpoint at epoch min_9 in: experiments/exp_RNO_four_late_non_linear_merge_b-256_tr-793_lfn-MSELoss_opt-Adam_hiddenu-32_lr-0.001_lFactor-0.1_temporalRes-256_wkrs-pers12_preftch-12_kill_hu_debug/checkpoints/checkpoint_emin_9.pth
+[INFO: 02/25/2026 12:18:11 AM] Removed previous best checkpoint: checkpoint_emin_7.pth
+[INFO: 02/25/2026 12:18:11 AM] Epoch 9, Train Loss: 0.2583, Test Loss: 0.3131
+[INFO: 02/25/2026 12:18:19 AM] TRAIN: Batch   50 | Speed: 1555.44 img/s | Loss: 0.2577
+[INFO: 02/25/2026 12:18:27 AM] TRAIN: Batch  100 | Speed: 1635.33 img/s | Loss: 0.2567
+[INFO: 02/25/2026 12:18:34 AM] TRAIN: Batch  150 | Speed: 1664.47 img/s | Loss: 0.2509
+[INFO: 02/25/2026 12:18:41 AM] TRAIN: Batch  200 | Speed: 1679.43 img/s | Loss: 0.2451
+[INFO: 02/25/2026 12:18:49 AM] TRAIN: Batch  250 | Speed: 1688.45 img/s | Loss: 0.2258
+[INFO: 02/25/2026 12:18:56 AM] TRAIN: Batch  300 | Speed: 1694.64 img/s | Loss: 0.2633
+[INFO: 02/25/2026 12:19:04 AM] TRAIN: Batch  350 | Speed: 1699.22 img/s | Loss: 0.3044
+[INFO: 02/25/2026 12:19:11 AM] TRAIN: Batch  400 | Speed: 1702.55 img/s | Loss: 0.3588
+[INFO: 02/25/2026 12:19:18 AM] TRAIN: Batch  450 | Speed: 1705.17 img/s | Loss: 0.2933
+[INFO: 02/25/2026 12:19:26 AM] TRAIN: Batch  500 | Speed: 1707.17 img/s | Loss: 0.2551
+[INFO: 02/25/2026 12:19:33 AM] TRAIN: Batch  550 | Speed: 1708.89 img/s | Loss: 0.2691
+[INFO: 02/25/2026 12:19:41 AM] TRAIN: Batch  600 | Speed: 1710.30 img/s | Loss: 0.2434
+[INFO: 02/25/2026 12:19:48 AM] TRAIN: Batch  650 | Speed: 1711.60 img/s | Loss: 0.2733
+[INFO: 02/25/2026 12:19:56 AM] TRAIN: Batch  700 | Speed: 1713.05 img/s | Loss: 0.2367
+[INFO: 02/25/2026 12:20:03 AM] TRAIN: Batch  750 | Speed: 1714.25 img/s | Loss: 0.2485
+[INFO: 02/25/2026 12:20:10 AM] TEST: Batch   10 | Speed: 2333.78 img/s | Loss: 0.2649
+[INFO: 02/25/2026 12:20:11 AM] TEST: Batch   20 | Speed: 3119.38 img/s | Loss: 0.2800
+[INFO: 02/25/2026 12:20:11 AM] TEST: Batch   30 | Speed: 3590.70 img/s | Loss: 0.3202
+[INFO: 02/25/2026 12:20:12 AM] TEST: Batch   40 | Speed: 3823.43 img/s | Loss: 0.3627
+[INFO: 02/25/2026 12:20:12 AM] TEST: Batch   50 | Speed: 4103.39 img/s | Loss: 0.3105
+[INFO: 02/25/2026 12:20:13 AM] TEST: Batch   60 | Speed: 4314.01 img/s | Loss: 0.3181
+[INFO: 02/25/2026 12:20:13 AM] TEST: Batch   70 | Speed: 4482.33 img/s | Loss: 0.3575
+[INFO: 02/25/2026 12:20:14 AM] TEST: Batch   80 | Speed: 4621.08 img/s | Loss: 0.3276
+[INFO: 02/25/2026 12:20:14 AM] TEST: Batch   90 | Speed: 4718.10 img/s | Loss: 0.3035
+[INFO: 02/25/2026 12:20:14 AM] Epoch 10, Train Loss: 0.2575, Test Loss: 0.3170
+[INFO: 02/25/2026 12:20:23 AM] TRAIN: Batch   50 | Speed: 1558.58 img/s | Loss: 0.2504
+[INFO: 02/25/2026 12:20:30 AM] TRAIN: Batch  100 | Speed: 1637.58 img/s | Loss: 0.2144
+[INFO: 02/25/2026 12:20:38 AM] TRAIN: Batch  150 | Speed: 1666.25 img/s | Loss: 0.2611
+[INFO: 02/25/2026 12:20:45 AM] TRAIN: Batch  200 | Speed: 1681.05 img/s | Loss: 0.2248
+[INFO: 02/25/2026 12:20:53 AM] TRAIN: Batch  250 | Speed: 1690.09 img/s | Loss: 0.2240
+[INFO: 02/25/2026 12:21:00 AM] TRAIN: Batch  300 | Speed: 1696.06 img/s | Loss: 0.2255
+[INFO: 02/25/2026 12:21:07 AM] TRAIN: Batch  350 | Speed: 1700.44 img/s | Loss: 0.2222
+[INFO: 02/25/2026 12:21:15 AM] TRAIN: Batch  400 | Speed: 1703.61 img/s | Loss: 0.2294
+[INFO: 02/25/2026 12:21:22 AM] TRAIN: Batch  450 | Speed: 1706.21 img/s | Loss: 0.2383
+[INFO: 02/25/2026 12:21:30 AM] TRAIN: Batch  500 | Speed: 1708.26 img/s | Loss: 0.2210
+[INFO: 02/25/2026 12:21:37 AM] TRAIN: Batch  550 | Speed: 1709.99 img/s | Loss: 0.2531
+[INFO: 02/25/2026 12:21:44 AM] TRAIN: Batch  600 | Speed: 1711.42 img/s | Loss: 0.2336
+[INFO: 02/25/2026 12:21:52 AM] TRAIN: Batch  650 | Speed: 1712.73 img/s | Loss: 0.2132
+[INFO: 02/25/2026 12:21:59 AM] TRAIN: Batch  700 | Speed: 1714.12 img/s | Loss: 0.2467
+[INFO: 02/25/2026 12:22:07 AM] TRAIN: Batch  750 | Speed: 1715.30 img/s | Loss: 0.2732
+[INFO: 02/25/2026 12:22:14 AM] TEST: Batch   10 | Speed: 2231.25 img/s | Loss: 0.2745
+[INFO: 02/25/2026 12:22:14 AM] TEST: Batch   20 | Speed: 3136.73 img/s | Loss: 0.2645
+[INFO: 02/25/2026 12:22:15 AM] TEST: Batch   30 | Speed: 3578.26 img/s | Loss: 0.3295
+[INFO: 02/25/2026 12:22:15 AM] TEST: Batch   40 | Speed: 3920.44 img/s | Loss: 0.3711
+[INFO: 02/25/2026 12:22:16 AM] TEST: Batch   50 | Speed: 4193.08 img/s | Loss: 0.3043
+[INFO: 02/25/2026 12:22:16 AM] TEST: Batch   60 | Speed: 4398.87 img/s | Loss: 0.3034
+[INFO: 02/25/2026 12:22:17 AM] TEST: Batch   70 | Speed: 4560.82 img/s | Loss: 0.3591
+[INFO: 02/25/2026 12:22:17 AM] TEST: Batch   80 | Speed: 4640.98 img/s | Loss: 0.3160
+[INFO: 02/25/2026 12:22:18 AM] TEST: Batch   90 | Speed: 4754.44 img/s | Loss: 0.2971
+[INFO: 02/25/2026 12:22:18 AM] Epoch 11, Train Loss: 0.2446, Test Loss: 0.3136
+[INFO: 02/25/2026 12:22:26 AM] TRAIN: Batch   50 | Speed: 1554.14 img/s | Loss: 0.2644
+[INFO: 02/25/2026 12:22:34 AM] TRAIN: Batch  100 | Speed: 1635.21 img/s | Loss: 0.2093
+[INFO: 02/25/2026 12:22:41 AM] TRAIN: Batch  150 | Speed: 1664.61 img/s | Loss: 0.2200
+[INFO: 02/25/2026 12:22:49 AM] TRAIN: Batch  200 | Speed: 1679.76 img/s | Loss: 0.2418
+[INFO: 02/25/2026 12:22:56 AM] TRAIN: Batch  250 | Speed: 1689.18 img/s | Loss: 0.2683
+[INFO: 02/25/2026 12:23:03 AM] TRAIN: Batch  300 | Speed: 1695.30 img/s | Loss: 0.2636
+[INFO: 02/25/2026 12:23:11 AM] TRAIN: Batch  350 | Speed: 1699.74 img/s | Loss: 0.2187
+[INFO: 02/25/2026 12:23:18 AM] TRAIN: Batch  400 | Speed: 1703.08 img/s | Loss: 0.2685
+[INFO: 02/25/2026 12:23:26 AM] TRAIN: Batch  450 | Speed: 1705.71 img/s | Loss: 0.2505
+[INFO: 02/25/2026 12:23:33 AM] TRAIN: Batch  500 | Speed: 1707.72 img/s | Loss: 0.2368
+[INFO: 02/25/2026 12:23:41 AM] TRAIN: Batch  550 | Speed: 1709.43 img/s | Loss: 0.2534
+[INFO: 02/25/2026 12:23:48 AM] TRAIN: Batch  600 | Speed: 1710.84 img/s | Loss: 0.2134
+[INFO: 02/25/2026 12:23:55 AM] TRAIN: Batch  650 | Speed: 1712.18 img/s | Loss: 0.2377
+[INFO: 02/25/2026 12:24:03 AM] TRAIN: Batch  700 | Speed: 1713.56 img/s | Loss: 0.2231
+[INFO: 02/25/2026 12:24:10 AM] TRAIN: Batch  750 | Speed: 1714.81 img/s | Loss: 0.2509
+[INFO: 02/25/2026 12:24:18 AM] TEST: Batch   10 | Speed: 2328.03 img/s | Loss: 0.2675
+[INFO: 02/25/2026 12:24:18 AM] TEST: Batch   20 | Speed: 3129.09 img/s | Loss: 0.2762
+[INFO: 02/25/2026 12:24:19 AM] TEST: Batch   30 | Speed: 3630.63 img/s | Loss: 0.3340
+[INFO: 02/25/2026 12:24:19 AM] TEST: Batch   40 | Speed: 3915.91 img/s | Loss: 0.3650
+[INFO: 02/25/2026 12:24:19 AM] TEST: Batch   50 | Speed: 4188.54 img/s | Loss: 0.2883
+[INFO: 02/25/2026 12:24:20 AM] TEST: Batch   60 | Speed: 4394.33 img/s | Loss: 0.3027
+[INFO: 02/25/2026 12:24:20 AM] TEST: Batch   70 | Speed: 4555.72 img/s | Loss: 0.3632
+[INFO: 02/25/2026 12:24:21 AM] TEST: Batch   80 | Speed: 4689.77 img/s | Loss: 0.3252
+[INFO: 02/25/2026 12:24:21 AM] TEST: Batch   90 | Speed: 4800.10 img/s | Loss: 0.3115
+[INFO: 02/25/2026 12:24:22 AM] Epoch 12, Train Loss: 0.2368, Test Loss: 0.3159
+[INFO: 02/25/2026 12:24:30 AM] TRAIN: Batch   50 | Speed: 1556.28 img/s | Loss: 0.2520
+[INFO: 02/25/2026 12:24:37 AM] TRAIN: Batch  100 | Speed: 1636.30 img/s | Loss: 0.2011
+[INFO: 02/25/2026 12:24:39 AM] Saving checkpoint at epoch 12 in: experiments/exp_RNO_four_late_non_linear_merge_b-256_tr-793_lfn-MSELoss_opt-Adam_hiddenu-32_lr-0.001_lFactor-0.1_temporalRes-256_wkrs-pers12_preftch-12_kill_hu_debug/checkpoints/checkpoint_e12.pth
+[INFO: 02/25/2026 12:24:40 AM] Code exited on epoch: 12 and a checkpoint was created in experiments/exp_RNO_four_late_non_linear_merge_b-256_tr-793_lfn-MSELoss_opt-Adam_hiddenu-32_lr-0.001_lFactor-0.1_temporalRes-256_wkrs-pers12_preftch-12_kill_hu_debug/checkpoints

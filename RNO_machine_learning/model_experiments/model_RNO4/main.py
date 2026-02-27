@@ -1,12 +1,18 @@
+import os
+os.environ['HDF5_USE_FILE_LOCKING'] = "FALSE"
+
 from torch.utils.data import DataLoader
 from torch import Tensor
 import logging
 import torch
 import time
 import sys
-import os
+
 # Enable TF32 for faster matrix multiplications
 torch.set_float32_matmul_precision('high')
+
+# Enable benchmarking (runs a race of convolution algorithms to determine which one is better)
+torch.backends.cudnn.benchmark = True # Use for static input size and GPUs
 
 # Add utils directory to path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
@@ -31,17 +37,18 @@ print('✅ Inside correct folder')
 # ====================================================================
 # PARAMS
 # ====================================================================
-BATCH_SIZE = 8 ## TEMPORARY FOR DEBUGGING!
+BATCH_SIZE = 256
 NUM_EPOCHS = int(100_000)
 checkpoint_path = None
 CHECKPOINT_FREQ = 50
 NORMALIZE_INPUTS = True
 LEAK_FACTOR = 0.1 
-DROPOUT_RATE = 0.1 
+DROPOUT_RATE = 0.3
+WEIGHT_DECAY = 1e-4
 LEARNING_RATE = 0.001
 HIDDEN_UNITS = 32
 WANDB_ID = None
-TEMPORAL_RES = 64
+TEMPORAL_RES = 256
 CARTESIAN = True # <-- Added to prevent NameError in experiment_name. But deprecated since all data should be in Cartesian
 # ====================================================================
 
@@ -65,8 +72,8 @@ print(torch.__version__)
 # ====================================================================
 # PATHS
 # ====================================================================
-train_vds_path = '/data/condor_shared/users/ssued/RNO_vertex_reconstruction_ml/RNO_album_maker/jobs/shards_debug_clamp/train.vds'
-test_vds_path  = '/data/condor_shared/users/ssued/RNO_vertex_reconstruction_ml/RNO_album_maker/jobs/shards_debug_clamp/test.vds'
+train_vds_path = '/data/i3store/users/ssued/albums/sharded/rno_sim_shards_v2_max/train.vds'
+test_vds_path  = '/data/i3store/users/ssued/albums/sharded/rno_sim_shards_v2_max/test.vds'
 
 # ====================================================================
 # INITIALIZE DATASETS & EXTRACT NORMALIZATION STATS
@@ -95,14 +102,19 @@ print('Initializing album data loaders...')
 train_data_loader = DataLoader(dataset = train_album,
                                batch_size = BATCH_SIZE,
                                shuffle = True,
-                               num_workers = 16,
-                               pin_memory=True)
+                               num_workers = 12,
+                               prefetch_factor=16, # 256 X 12 X 8 is 24576 images given to the GPU
+                               pin_memory=True,
+                               persistent_workers=True, # Important!
+                               drop_last=True) # Will drop the last batch which may not have 256 elements!
 
 test_data_loader = DataLoader(dataset = test_album,
                               batch_size = BATCH_SIZE,
                               shuffle = False,
-                              num_workers = 4,
-                              pin_memory=True)
+                              num_workers = 8, # Had 4 but now prefetch went from 2 -> 1
+                              prefetch_factor = 4, # From 
+                              pin_memory=True,
+                              persistent_workers=True)
 
 print(f'Number of train batches: {len(train_data_loader)} | Number of test batches: {len(test_data_loader)}')
 
@@ -129,25 +141,25 @@ model = model.to(device)
 # ====================================================================
 # SETUP OPTIMIZER & LOGGING
 # ====================================================================
-optimizer = torch.optim.Adam(params=model.parameters(), lr = LEARNING_RATE)
+optimizer = torch.optim.Adam(params=model.parameters(), lr = LEARNING_RATE, weight_decay = WEIGHT_DECAY, fused = True)
 optimizer_name = optimizer.__class__.__name__
 
 loss_fn = torch.nn.MSELoss()
 loss_fn_name = loss_fn.__class__.__name__
 
 experiment_name = (f'exp_{model.__class__.__name__}' +
-                  f'_bn{BATCH_SIZE}' +
-                  f'_tr{len(train_data_loader)}' +
-                  f'_te{len(test_data_loader)}' +
+                  f'_b-{BATCH_SIZE}' +
+                  f'_tr-{len(train_data_loader)}' +
                   f'_lfn-{loss_fn_name}' +
                   f'_opt-{optimizer_name}' +
+                  f'_wdcay-{WEIGHT_DECAY:.1e}'
                   f'_hiddenu-{HIDDEN_UNITS}' +
-                  f'_lr-{LEARNING_RATE}' +
-                  f'_lFactor-{LEAK_FACTOR}' +
-                  f'_cartesian_transform-{CARTESIAN}' +
-                  f'_temporalRes-{TEMPORAL_RES}' +
-                  '_vds_run' +
-                  '_debug_GPU'
+                  f'_lr-{LEARNING_RATE:.2e}' +
+                  f'_leak-{LEAK_FACTOR}' +
+                  f'_tempRes-{TEMPORAL_RES}' +
+                  f'_dpout-{DROPOUT_RATE}' +
+                  '_bin_mode=MAX'
+                  '_debug'
                  )
 
 # Create experiments directory if it doesn't exist
