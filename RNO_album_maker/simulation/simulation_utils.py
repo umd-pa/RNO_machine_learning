@@ -9,7 +9,56 @@ from tqdm import tqdm
 import os
 import matplotlib.pyplot as plt
 
-shards_dir = Path('/data/condor_shared/users/ssued/RNO_vertex_reconstruction_ml/RNO_album_maker/jobs/shards_debug_clamp')
+def get_max_memory_of_logs(job_logs_dir: str | Path, verbose: bool = False):
+    job_logs_dir = Path(job_logs_dir)
+    get_max_memory_of_step(job_logs_dir/'step1*', verbose = verbose)
+    get_max_memory_of_step(job_logs_dir/'step2*', verbose = verbose)
+    get_max_memory_of_step(job_logs_dir/'step3*', verbose = verbose)
+
+
+def get_max_memory_of_step(job_logs_step: str | Path, verbose: bool = False):
+    job_logs_step = Path(job_logs_step)
+    # Find all stepn log files
+    log_files = glob.glob(str(job_logs_step))
+    
+    if not log_files:
+        print(f"No log files found matching {job_logs_step}")
+        return
+
+    results = []
+
+    # Regex to find the number before " - MemoryUsage of job (MB)"
+    # Example line: 5  -  MemoryUsage of job (MB)
+    mem_pattern = re.compile(r"(\d+)\s+-\s+MemoryUsage of job \(MB\)")
+
+    for log in log_files:
+        max_in_file = 0
+        with open(log, 'r') as f:
+            for line in f:
+                match = mem_pattern.search(line)
+                if match:
+                    val = int(match.group(1))
+                    val = int(match.group(1))
+                    if 0 < val < 128000:  # Ignore anything over 128GB as a glitch
+                        if val > max_in_file:
+                            max_in_file = val
+        results.append((log, max_in_file))
+
+    # Sort results by memory usage (highest first)
+    results.sort(key=lambda x: x[1], reverse=True)
+    if verbose:
+        print(f"{'Log File':<30} | {'Max Memory (MB)':<15}")
+        print("-" * 50)
+    for log, mem in results:
+        if verbose:
+            print(f"{log:<30} | {mem:<15}")
+
+    # Final Summary
+    grand_max = results[0][1] if results else 0
+    print("\n" + "="*50)
+    print(f"GRAND MAXIMUM ACROSS ALL JOBS IN {job_logs_step.name}: {grand_max} MB")
+    print(f"RECOMMENDED REQUEST_MEMORY:   {max(200, grand_max * 1.5)} MB")
+    print("="*50)
 
 def print_shards_dir_mem(shards_dir: str | Path, verbose = True):
     shards_dir = Path(shards_dir)
