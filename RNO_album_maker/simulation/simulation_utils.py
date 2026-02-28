@@ -9,6 +9,8 @@ from tqdm import tqdm
 import os
 import matplotlib.pyplot as plt
 
+
+
 def get_max_memory_of_logs(job_logs_dir: str | Path, verbose: bool = False):
     job_logs_dir = Path(job_logs_dir)
     get_max_memory_of_step(job_logs_dir/'step1*', verbose = verbose)

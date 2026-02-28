@@ -620,8 +620,8 @@ class RNO_four_late_non_linear_merge(nn.Module):
                  input_shape: int,
                  hidden_units: int, 
                  output_shape: int,
-                 label_mean: ndarray,
-                 label_std: ndarray,
+                 label_mean: ndarray | None | torch.Tensor = None,
+                 label_std: ndarray | None | torch.Tensor = None,
                  num_epochs: int | None = None,
                  batch_size: int | None = None,
                  num_train_batches: int | None = None,
@@ -644,8 +644,8 @@ class RNO_four_late_non_linear_merge(nn.Module):
             label_std = torch.ones(output_shape)
             
         # Register them into the model's state
-        self.register_buffer('label_mean', torch.tensor(label_mean, dtype=torch.float32))
-        self.register_buffer('label_std', torch.tensor(label_std, dtype=torch.float32))
+        self.register_buffer('label_mean', torch.as_tensor(label_mean, dtype=torch.float32))
+        self.register_buffer('label_std', torch.as_tensor(label_std, dtype=torch.float32))
 
         # --- STATION BLOCK (Feature Extraction) ---
         self.station_block = nn.Sequential(
