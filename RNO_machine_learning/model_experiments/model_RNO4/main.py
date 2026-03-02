@@ -72,8 +72,8 @@ print(torch.__version__)
 # ====================================================================
 # PATHS
 # ====================================================================
-train_vds_path = '/data/i3store/users/ssued/albums/sharded/rno_sim_shards_v2_max/train.vds'
-test_vds_path  = '/data/i3store/users/ssued/albums/sharded/rno_sim_shards_v2_max/test.vds'
+train_vds_path = '/data/i3store/users/ssued/album/sharded/rno_avg/train.vds'
+test_vds_path  = '/data/i3store/users/ssued/album/sharded/rno_avg/test.vds'
 
 # ====================================================================
 # INITIALIZE DATASETS & EXTRACT NORMALIZATION STATS

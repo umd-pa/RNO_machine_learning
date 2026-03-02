@@ -1,15 +1,19 @@
 """
 Virtual Dataset Creator
 -------------------------------
-Scans a directory of HDF5 shards (from Step 3) and creates 
+Scans one or more directories of HDF5 shards (from Step 3) and creates 
 Train, Validation, and Test Virtual Datasets (VDS) that map them all together.
 
 Logic:
-1. Scans folder for .hdf5 files.
+1. Scans all provided input folders for .hdf5 files.
 2. Opens each file to read 'n_images' and shape attributes.
 3. Verifies all files match the configuration of the first file.
 4. Shuffles and splits the list of valid files into Train/Val/Test.
 5. Creates Virtual Layouts for each split.
+
+Usage Note:
+If multiple input directories are provided via --input_dirs, an explicit 
+--output_dir must be specified to save the resulting .vds files.
 
 Author: Santiago Sued
 """
@@ -87,11 +91,16 @@ def main():
     logger.setLevel(logging.INFO)
     
     parser = argparse.ArgumentParser(description='Create Virtual Dataset Splits')
-    parser.add_argument('--input_dir', required=True, help='Directory containing .hdf5 shards')
-    parser.add_argument('--output_dir', default=None, help='Directory to save .vds files. Defaults to input_dir.')
+    parser.add_argument('--input_dirs', nargs='+', required=True, help='Directories containing .hdf5 shards')
+    parser.add_argument('--output_dir', default=None, help='Directory to save .vds files. Defaults to input_dirs.')
     parser.add_argument('--split_ratios', nargs=3, type=float, default=[0.8, 0.1, 0.1], help='Train/Test/Val ratios. Default: 0.8 0.1 0.1')
     parser.add_argument('--seed', type=int, default=42, help='Random seed for reproducible shuffling.')
     args = parser.parse_args()
+
+    # Require an output directory if multiple input_dirs are provided
+    if len(args.input_dirs) > 1 and args.output_dir is None:
+        logger.error(f"If more than one input directories are provided, the user MUST specify an output directory to save the .vds files!")
+        return
 
     # Validate ratios add up to ~1.0
     if not math.isclose(sum(args.split_ratios), 1.0, abs_tol=1e-4):
@@ -99,15 +108,18 @@ def main():
         return
 
     # Determine output directory
-    out_dir = args.output_dir if args.output_dir else args.input_dir
+    out_dir = args.output_dir if args.output_dir else args.input_dirs[0]
     os.makedirs(out_dir, exist_ok=True)
 
     # 2. Find Files
-    search_path = os.path.join(args.input_dir, '*.hdf5')
-    files = [os.path.abspath(p) for p in sorted(glob.glob(search_path))] # Appends full path to files, to make sure they are easily found!
-    
+    files = []
+    for input_dir in args.input_dirs:
+        search_path = os.path.join(input_dir, '*.hdf5')
+        # Extend makes sure to grab the iterable and put every item individually into the files array!
+        files.extend([os.path.abspath(p) for p in sorted(glob.glob(search_path))]) # Use full path to files, to make sure they are easily found!
+
     if not files:
-        logger.error(f"No HDF5 files found in {args.input_dir}")
+        logger.error(f"No HDF5 files found in {args.input_dirs}")
         return
 
     logger.info(f"Found {len(files)} potential shards.")
