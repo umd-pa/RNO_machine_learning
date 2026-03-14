@@ -13,6 +13,7 @@ import argparse
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--target_dir', required=True, help="Directory to clean")
+    parser.add_argument('--delete_nurs', action='store_true', help="Delete .nur files (default: False)", default=False)
     args = parser.parse_args()
 
     # Safety Check: Ensure we are targeting the right kind of folder
@@ -24,6 +25,9 @@ def main():
     nur_files = glob.glob(os.path.join(args.target_dir, "*.nur"))
     hdf5_files = glob.glob(os.path.join(args.target_dir, "*.hdf5"))
     
+    if not args.delete_nurs:
+        nur_files = []  # Clear the list if we are not deleting .nur files
+
     all_files = nur_files + hdf5_files
 
     if not all_files:
