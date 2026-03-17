@@ -1,59 +1,62 @@
-import logging
+import wandb
 import torch
 import time
 
-def test_step(model: torch.nn.Module, data_loader: torch.utils.data.DataLoader, loss_fn: torch.nn.Module, device: torch.device | str, logger: logging.Logger):
+
+def test_step(
+    model: torch.nn.Module,
+    data_loader: torch.utils.data.DataLoader,
+    loss_fn: torch.nn.Module,
+    device: torch.device | str,
+) -> float:
     """
-    Performs one testing epoch over the entire batched dataset.
-    
+    Performs one full test epoch over the entire batched dataset.
+
+    Uses torch.inference_mode() instead of no_grad() — stricter and faster
+    as it disables both gradient tracking and version tracking. Combined with
+    bfloat16 autocast for consistent precision with the training step.
+
+    Loss tensors are accumulated on the GPU and synced to CPU only once at
+    the end of the epoch, matching the same pattern as train_step.
+
+    WandB logging is conditional on an active run (wandb.run is not None)
+    — no flag needs to be passed. If WandB is disabled, all logging is
+    silently skipped.
+
     Args:
-        model: PyTorch neural network model to train
-        dataloader: DataLoader containing training batches
-        optimizer: Optimization algorithm (e.g., Adam, SGD)
-        device: Device to run computations on (CPU/CUDA)
-        logging: Logger for logging testing progress
-    
+        model      : PyTorch model to evaluate. Must already be on `device`.
+        data_loader: DataLoader providing (images, labels) batches.
+        loss_fn    : Loss function (e.g., MSELoss).
+        device     : Device to run computations on (CPU/CUDA).
+
     Returns:
-        float: Average training loss across all batches in the epoch
+        float: Mean test loss across all batches in the epoch.
     """
-    # Set model to evaluation mode - disables dropout, batch normalization training behavior
     model.eval()
 
-    # Initialize list to store loss from each batch
     batch_test_losses = []
+    total_imgs        = 0
+    start_time        = time.time()
 
-    total_imgs = 0
-    start_time = time.time()
-
-    # Stop tracking gradients and loop through all batches
     with torch.inference_mode():
         for batch, (X, y) in enumerate(data_loader):
-            # Move input features and labels to the specified device
+
+            # Async transfer — CPU does not wait for GPU transfer to complete
             X, y = X.to(device, non_blocking=True), y.to(device, non_blocking=True)
-    
-            with torch.autocast(device_type='cuda',dtype=torch.bfloat16):
-                # Forward pass
+
+            # bfloat16 forward pass — consistent precision with train_step
+            with torch.autocast(device_type='cuda', dtype=torch.bfloat16):
                 y_pred = model(X)
-                
-                # Squeeze labels. Only matters if batch size = 1. Will convert y from y.shape = [1,3] to [3]
-                y = y.squeeze(1)
+                loss   = loss_fn(y_pred, y.squeeze(1))
 
-                # if logger.isEnabledFor(logging.DEBUG):
-                #     logger.debug(f'Batch {batch}:')
-                #     logger.debug([(yp, y0) for yp, y0 in zip(y_pred[0], y[0])])
-                
-                # Calculate loss
-                loss = loss_fn(y_pred, y)
-            
-            total_imgs += len(X)
+            total_imgs += X.size(0)
 
-            batch_test_losses.append(loss.item())
+            # Stay on GPU — no CPU sync until end of epoch
+            batch_test_losses.append(loss.detach())
 
             if batch > 0 and batch % 10 == 0:
-                torch.cuda.synchronize()
-                elapsed = time.time() - start_time
-                avg_speed = total_imgs / elapsed
-                logger.info(f"TEST: Batch {batch:4d} | Speed: {avg_speed:7.2f} img/s | Loss: {loss.item():.4f}")
+                avg_speed = total_imgs / (time.time() - start_time)
+                print(f"TEST: Batch {batch:4d} | Speed: {avg_speed:7.2f} img/s")
 
-    # Return the average loss across all batches in this testing epoch
-    return sum(batch_test_losses) / len(batch_test_losses)
+    # Single CPU sync — stack all GPU loss tensors, mean, then .item()
+    return torch.stack(batch_test_losses).mean().item()
