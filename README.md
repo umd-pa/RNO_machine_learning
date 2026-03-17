@@ -1,4 +1,4 @@
-# RNO-G Multi-station Vertex Reconstruction with CNN Pipeline
+# RNO-G Multi-station Vertex Reconstruction with CNN Pipeline (README is WIP)
 ## Repo Structure
 ```text
 RNO_vertex_reconstruction_ml/
@@ -25,6 +25,7 @@ RNO_vertex_reconstruction_ml/
 |    ├── manifest_builder                                              # Directory for generating .json manifests
 |    |    ├── build_shards_manifest.py                                 # Script to create manifest from shard dirs
 |    |    ├── manifest_config.yaml                                     # Config for build_shards_maifest.py
+|    |    ├── manifest_utils.py                                        # Utils for manifests
 |    |    └── manifest/ (EXAMPLE)                                      # Example of what manifest should look like
 |    ├── utils_dir/                                                    # Utils dir for machine learning
 |    └── model_experiments/ (EXAMPLE)                                  # Directory containing checkpoints and experiments.
@@ -47,8 +48,6 @@ RNO_vertex_reconstruction_ml/
 
 ## Creating Data
 To create data you must run the 3 simulation steps in sequence. Please take a look at the argparse inside of the scripts to understand what each script expects.
-
-TODO
 
 ## Splitting Data
 Once *multiple shards* have been created, run manifest_builder on the shards to create a .json separating the shards into train/test/val splits. 
