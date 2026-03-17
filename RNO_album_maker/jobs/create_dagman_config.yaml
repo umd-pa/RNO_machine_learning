@@ -1,0 +1,14 @@
+# config_default.yaml
+simulation:
+  n_jobs: 500
+  n_nu: 100000
+
+signal:
+  time_window: 8192
+  time_bins: 1024
+  bin_mode: MEAN
+  noise_level: 10.0
+  clamp_v: 1.0
+
+cleanup:
+  store_nurs: null # Path to store the nur files in, if null, will just overwrite latest_sim_nurs
