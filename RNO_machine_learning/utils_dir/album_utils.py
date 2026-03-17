@@ -6,8 +6,133 @@ import glob
 import os
 import shutil
 import time
-import shutil
 import sys
+
+def consolidate_shards(input_dir, output_dir, images_per_shard):
+    """
+    Merges many small shards into fewer large contiguous ones.
+    Reads input shards sequentially, buffers images until the target
+    shard size is reached, then writes a single contiguous HDF5 file.
+
+    Args:
+        input_dir:        directory containing your current .hdf5 shards
+        output_dir:       directory to write consolidated shards
+        images_per_shard: target number of images per output shard
+    """
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+        print(f"Created directory: {output_dir}")
+
+    files = sorted(glob.glob(os.path.join(input_dir, "*.hdf5")))
+    print(f"Found {len(files)} input shards in {input_dir}")
+    print(f"Target: ~{images_per_shard} images per output shard")
+    print(f"Expected output shards: ~{len(files) * 500 // images_per_shard}")
+
+    buffer_imgs   = []  # accumulates numpy arrays from input shards
+    buffer_lbls   = []
+    buffer_counts = []  # station_hit_count
+    buffer_size   = 0   # total images currently in buffer
+    shard_out_idx = 0   # output shard counter
+
+    def write_shard(imgs, lbls, counts, idx):
+        """Concatenates buffer and writes a single contiguous HDF5 shard."""
+        out_path = os.path.join(output_dir, f'shard_{idx:04d}.hdf5')
+        combined_imgs   = np.concatenate(imgs,   axis=0)
+        combined_lbls   = np.concatenate(lbls,   axis=0)
+        combined_counts = np.concatenate(counts, axis=0)
+        with h5py.File(out_path, 'w') as f:
+            # Apparently chunking is faster
+            f.create_dataset('album', chunks=(1, 24, 1024, 4),data=combined_imgs)
+            f.create_dataset('vertices',          data=combined_lbls)
+            f.create_dataset('station_hit_count', data=combined_counts)
+        tqdm.write(f"  --> Written shard_{idx:04d}.hdf5 "
+                   f"({len(combined_imgs)} images, "
+                   f"{os.path.getsize(out_path)/1e6:.1f} MB)")
+        return idx + 1
+
+    for file_path in tqdm(files, desc="Consolidating shards", unit="shard"):
+        try:
+            with h5py.File(file_path, 'r', locking=False) as f:
+                buffer_imgs.append(f['album'][:])
+                buffer_lbls.append(f['vertices'][:])
+                buffer_counts.append(f['station_hit_count'][:])
+                buffer_size += f['album'].shape[0]
+        except Exception as e:
+            tqdm.write(f"ERROR reading {os.path.basename(file_path)}: {e}")
+            continue
+
+        # Once buffer is full, flush to disk
+        if buffer_size >= images_per_shard:
+            shard_out_idx = write_shard(buffer_imgs, buffer_lbls, buffer_counts, shard_out_idx)
+            buffer_imgs   = []
+            buffer_lbls   = []
+            buffer_counts = []
+            buffer_size   = 0
+
+    # Write any remaining images that didn't fill a complete shard
+    if buffer_imgs:
+        print(f'Flushing remaining images {len(buffer_imgs)}, to final shard shard_{shard_out_idx:04d}.hdf5...')
+        shard_out_idx = write_shard(buffer_imgs, buffer_lbls, buffer_counts, shard_out_idx)
+
+    print(f"\nDone! Written {shard_out_idx} consolidated shards to {output_dir}")
+
+def recompress_shards(input_dir, output_dir):
+    """
+    Copies all HDF5 shards from input_dir to output_dir, preserving all
+    attributes, keys, shapes, and dtypes from the original, but rewriting
+    datasets with gzip level 1 compression, original chunk layout, and no
+    byte shuffle filter.
+
+    Args:
+        input_dir  (str): Directory containing original .hdf5 shards.
+        output_dir (str): Directory to write recompressed shards.
+    """
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+        print(f"Created directory: {output_dir}")
+
+    files = sorted(glob.glob(os.path.join(input_dir, "*.hdf5")))
+    print(f"Found {len(files)} shards in {input_dir}")
+
+    for file_path in tqdm(files, desc="Recompressing shards", unit="shard"):
+        file_name   = os.path.basename(file_path)
+        output_path = os.path.join(output_dir, file_name)
+
+        if os.path.exists(output_path):
+            tqdm.write(f"Skipping {file_name} (already exists)")
+            continue
+
+        try:
+            with h5py.File(file_path, 'r') as f_in:
+                with h5py.File(output_path, 'w') as f_out:
+
+                    # Preserve all file-level attributes exactly
+                    for attr_name, attr_value in f_in.attrs.items():
+                        f_out.attrs[attr_name] = attr_value
+
+                    for key in f_in.keys():
+                        data   = f_in[key][:]
+                        chunks = f_in[key].chunks  # preserve original chunk layout
+                        assert chunks is not None, f"Expected chunked album dataset in {file_name}"
+                        if key == 'album':
+                            f_out.create_dataset(key,
+                                                data=data,
+                                                dtype=f_in[key].dtype,  # preserve original dtype
+                                                chunks=chunks,
+                                                compression="gzip",
+                                                compression_opts=1,
+                                                shuffle=False)
+                        else:
+                            f_out.create_dataset(key,
+                                                data=data)
+
+        except Exception as e:
+            tqdm.write(f"ERROR on {file_name}: {e}")
+            if os.path.exists(output_path):
+                os.remove(output_path)
+            continue
+
+    print(f"Done! Recompressed {len(files)} shards to {output_dir}")
 
 def inspect_hdf5_layout(file_path):
     print(f"Inspecting: {file_path}")

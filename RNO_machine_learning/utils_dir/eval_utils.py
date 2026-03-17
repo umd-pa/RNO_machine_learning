@@ -1,5 +1,5 @@
 from torch.utils.data import DataLoader
-from .dataset import ShardAlbumDataset
+from .dataset import ShardAlbumDataset, PreloadShardIterableDataset
 from pathlib import Path
 from tqdm import tqdm
 import numpy as np
@@ -11,11 +11,11 @@ class ModelEvaluator:
     Automatically runs the evaluation pipeline upon instantiation.
     """
     
-    def __init__(self, model: torch.nn.Module, model_checkpoint: str | Path, eval_dset: str | Path, batch_size: int = 256, spherical: bool = True, load_npz: str | Path | None = None):
+    def __init__(self, model: torch.nn.Module, model_checkpoint: str | Path, eval_dset: PreloadShardIterableDataset, batch_size: int = 256, spherical: bool = True, load_npz: str | Path | None = None):
         # Store configuration
         self.model = model
         self.model_checkpoint = Path(model_checkpoint)
-        self.eval_dset = Path(eval_dset)
+        self.eval_dset = eval_dset
         self.batch_size = batch_size
         self.spherical = spherical
         
@@ -41,7 +41,7 @@ class ModelEvaluator:
         print(f"Executing evaluation on: {device}")
         
         print(f"Loading evaluation dataset from: {self.eval_dset}")
-        eval_album = ShardAlbumDataset(self.eval_dset)
+        eval_album = (self.eval_dset)
          
         # --- Added pin_memory=True if using CUDA to dramatically speed up data transfers ---
         use_pin_memory = torch.cuda.is_available()
