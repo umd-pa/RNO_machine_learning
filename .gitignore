@@ -20,4 +20,5 @@ RNO_machine_learning/model_experiments/model_RNO4_thesis/main.py
 RNO_machine_learning/utils_dir/test_workers.py
 RNO_machine_learning/model_experiments/model_RNO4/main_vds.py
 RNO_machine_learning/utils_dir/build_v_dset_splits.py
-*main.py
+*main.
+!create_dagman_config.yaml
