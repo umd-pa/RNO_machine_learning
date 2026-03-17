@@ -1,0 +1,12 @@
+# manifest_config.yaml
+# Config for build_shards_manifest.py
+# A copy of this file is saved alongside the manifest automatically.
+
+input_dirs:
+  - '/data/i3store/users/ssued/albums/sharded/rno_sim_shards_v1_compressed'
+  - '/data/i3store/users/ssued/albums/sharded/rno_sim_shards_v1_p2_compressed'
+
+output_path: /data/condor_shared/users/ssued/RNO_vertex_reconstruction_ml/RNO_machine_learning/manifest_builder/manifests/delete_this.json
+
+split_ratios: [0.8, 0.1, 0.1]
+seed: 42

@@ -13,3 +13,4 @@ __pycache__
 checkpoints/
 *debug*
 !*debug
+*old*
