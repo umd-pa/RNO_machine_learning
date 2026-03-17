@@ -283,17 +283,15 @@ def main():
         hf.create_dataset('album',
                           data=np.array(album, dtype='float32'),
                           chunks=(1,N_CHANNELS,args.time_bins,N_STATIONS),       # 1 chunk = 1 image!
-                          shuffle=True)      # Improve compression
+                          compression="gzip", compression_opts=1)  # Compress with gzip since most of my data is 0! Opts is fastest and simplest compression level, great for our sparse data!
         
         # 2. Vertex Labels (XYZ coordinates)
         hf.create_dataset('vertices',
-                          data=np.array(vertices, dtype='float32'),
-                          chunks=True)
+                          data=np.array(vertices, dtype='float32'))
         
         # 3. Hit Counts (Auxiliary info)
         hf.create_dataset('station_hit_count',
-                          data=np.array(n_detecting_stations_arr, dtype='int32').reshape(-1, 1), # Reshape to make it a column
-                          chunks=True)
+                          data=np.array(n_detecting_stations_arr, dtype='int32').reshape(-1, 1)) # Reshape to make it a column
 
     # Summary
     logger.info(f"{len(album)} events saved to {args.output_file}")
