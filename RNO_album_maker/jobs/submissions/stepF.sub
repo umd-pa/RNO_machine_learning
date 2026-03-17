@@ -7,7 +7,7 @@ environment = "HDF5_USE_FILE_LOCKING=FALSE"
 executable = /data/condor_shared/users/ssued/RNOG_Image_Builder/venv/bin/python3
 
 # 2. Arguments
-arguments = -u $(myscript) --target_dir $(target_dir)
+arguments = -u $(myscript) --target_dir $(target_dir) --store_nurs $(store_nurs)
 
 # 3. Logs
 log    = $(logdir)/stepF.log

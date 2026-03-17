@@ -1,11 +1,12 @@
 job_logs/
-*.dag
+*dag*
 *.hdf5
 *.nur
 simulation_data/*
 !simulation_data/*.yaml
 !simulation_data/*.json
 wandb/
+experiments/
 architecture_testing/
 debug.ipynb
 __pycache__
