@@ -102,7 +102,8 @@ def train_test(model: torch.nn.Module,
                     'Train Loss' : train_loss,
                     'Test Loss'  : test_loss,
                     'Epoch Time' : epoch_time,
-                }, step=epoch)
+                    'Epoch'      : epoch
+                })
 
             # --- Best model checkpoint ---
             if min_test_loss_epoch and test_loss < test_loss_min:
