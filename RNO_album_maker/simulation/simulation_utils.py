@@ -1,6 +1,8 @@
 """
 Simulation utils script to analyze simulation statistics quickly
 """
+from random import shuffle
+
 import h5py
 from pathlib import Path
 import re
@@ -8,6 +10,10 @@ import glob
 from tqdm import tqdm
 import os
 import matplotlib.pyplot as plt
+from collections import defaultdict
+import hashlib
+import numpy as np
+import json
 
 
 
@@ -155,3 +161,141 @@ def plot_hist_events(shards_dir: str | Path, n_nu: int):
     plt.legend()
     plt.xlabel('Event Number in Shard')
     plt.grid(True,alpha=0.8)
+
+def plot_hist_xyz(shards_dir: str | Path, n_nu: int, n_events: int = 1000):
+    
+    shards_dir = Path(shards_dir)
+    shards = os.listdir(shards_dir)
+    shuffle(shards)
+    x_arr = []
+    y_arr = []
+    z_arr = []
+    for i, file in enumerate(shards):
+        if i >= n_events:
+            break
+        if 'vds' not in file:
+            file_path = shards_dir / file
+            with h5py.File(file_path, 'r') as f:
+                vertices = f['vertices'][:] #type: ignore
+                x_arr.extend(vertices[:, 0])
+                y_arr.extend(vertices[:, 1])
+                z_arr.extend(vertices[:, 2])
+
+    plt.figure(figsize=(15, 5))
+    plt.subplot(1, 3, 1)
+    plt.hist(x_arr, bins=50, color='tab:orange')
+    plt.title(f'X Distribution for {n_nu} neutrino simulations')
+    plt.xlabel('X Position')
+    plt.ylabel('Frequency')
+    plt.grid(True,alpha=0.8)
+
+    plt.subplot(1, 3, 2)
+    plt.hist(y_arr, bins=50, color='tab:green')
+    plt.title(f'Y Distribution for {n_nu} neutrino simulations')
+    plt.xlabel('Y Position')
+    plt.ylabel('Frequency')
+    plt.grid(True,alpha=0.8)
+
+    plt.subplot(1, 3, 3)
+    plt.hist(z_arr, bins=50, color='tab:blue')
+    plt.title(f'Z Distribution for {n_nu} neutrino simulations')
+    plt.xlabel('Z Position')
+    plt.ylabel('Frequency')
+    plt.grid(True,alpha=0.8)
+
+def check_for_duplicates(manifest_path):
+    """
+    Check if any two events (images + labels) are identical across all shards
+    """
+    # Load manifest
+    with open(manifest_path, 'r') as f:
+        manifest = json.load(f)
+    
+    # Get all shard files (train + val + test)
+    all_shards = []
+    for split in ['train', 'val', 'test']:
+        all_shards.extend(manifest['splits'][split]['files'])
+    
+    print(f"Checking {len(all_shards)} shards for duplicates...")
+    print(f"Total events: {manifest['metadata']['total_images_all_splits']}")
+    
+    # Strategy: Hash each event, look for collisions
+    event_hashes = defaultdict(list)  # hash -> [(shard_file, index), ...]
+    
+    total_events = 0
+    
+    for shard_idx, shard_path in enumerate(tqdm(all_shards, desc="Hashing events")):
+        try:
+            with h5py.File(shard_path, 'r') as f:
+                images = f['album'][:]
+                labels = f['vertices'][:]
+                
+                num_events = images.shape[0]
+                
+                for event_idx in range(num_events):
+                    # Combine image and label into one array for hashing
+                    event_data = np.concatenate([
+                        images[event_idx].flatten(),
+                        labels[event_idx].flatten()
+                    ])
+                    
+                    # Hash the event
+                    event_hash = hashlib.sha256(event_data.tobytes()).hexdigest()
+                    
+                    # Store location
+                    event_hashes[event_hash].append((shard_path, event_idx))
+                    total_events += 1
+                    
+        except Exception as e:
+            print(f"Error reading {shard_path}: {e}")
+            continue
+    
+    print(f"\nProcessed {total_events} total events")
+    print(f"Unique hashes: {len(event_hashes)}")
+    
+    # Find duplicates
+    duplicates = {h: locs for h, locs in event_hashes.items() if len(locs) > 1}
+    
+    if duplicates:
+        print(f"\n🚨 FOUND {len(duplicates)} DUPLICATE EVENTS!")
+        print(f"   (events that appear multiple times)")
+        
+        # Show first few examples
+        for i, (event_hash, locations) in enumerate(list(duplicates.items())[:5]):
+            print(f"\nDuplicate {i+1}: Hash {event_hash[:16]}...")
+            print(f"  Appears {len(locations)} times:")
+            for shard, idx in locations[:10]:  # Show first 10 occurrences
+                print(f"    - {shard} at index {idx}")
+            if len(locations) > 10:
+                print(f"    ... and {len(locations) - 10} more")
+        
+        # Verify one duplicate by actually comparing arrays
+        print("\n🔍 Verifying first duplicate with full array comparison...")
+        first_dup = list(duplicates.values())[0]
+        loc1, loc2 = first_dup[0], first_dup[1]
+        
+        with h5py.File(loc1[0], 'r') as f1:
+            img1 = f1['album'][loc1[1]]
+            lbl1 = f1['vertices'][loc1[1]]
+        
+        with h5py.File(loc2[0], 'r') as f2:
+            img2 = f2['album'][loc2[1]]
+            lbl2 = f2['vertices'][loc2[1]]
+        
+        images_equal = np.array_equal(img1, img2)
+        labels_equal = np.array_equal(lbl1, lbl2)
+        
+        print(f"  Images equal: {images_equal}")
+        print(f"  Labels equal: {labels_equal}")
+        
+        if images_equal and labels_equal:
+            print("  ✅ Confirmed: These are true duplicates!")
+        else:
+            print("  ⚠️ Hash collision (not true duplicates - very rare!)")
+        
+        return duplicates
+        
+    else:
+        print("\n✅ NO DUPLICATES FOUND!")
+        print("   All events are unique across the dataset.")
+        return None
