@@ -13,6 +13,7 @@ from __future__ import absolute_import, division, print_function
 import argparse
 import logging
 import time
+import os
 
 # --- NuRadioMC / NuRadioReco Imports ---
 from NuRadioReco.utilities import units
@@ -23,6 +24,15 @@ from NuRadioMC.simulation import simulation
 import NuRadioReco.modules.trigger.highLowThreshold
 import NuRadioReco.modules.channelBandPassFilter
 import NuRadioReco.modules.RNO_G.hardwareResponseIncorporator
+
+def get_abs_path(rel_path):
+    """
+    Converts a relative path to an absolute path based on 
+    the location of THIS script (create_dagman.py).
+    """
+    # This gets the folder where create_dagman.py lives (e.g., .../jobs/)
+    base = os.path.dirname(os.path.abspath(__file__))
+    return os.path.abspath(os.path.join(base, rel_path))
 
 def main():
     # --- Argument Parsing ---
@@ -97,7 +107,7 @@ def main():
 
     sim = mySimulation(
         inputfilename=args.input_file,
-        outputfilename='output.hdf5', # Good file for debugging but usually unnecessary
+        outputfilename=get_abs_path('../simulation_data/output.hdf5'), # Good file for debugging but usually unnecessary
         detectorfile=args.detector_file,
         outputfilenameNuRadioReco=args.output_file, # Actual .nur output
         config_file=args.config_file,
