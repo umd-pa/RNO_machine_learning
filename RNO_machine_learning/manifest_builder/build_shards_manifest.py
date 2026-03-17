@@ -121,12 +121,16 @@ def main():
     valid_shards    = []  # list of (filepath, n_images)
     total_images    = 0
     ref_album_shape = None
+    hit_counts = [0,0,0,0] #1 station, 2 stations, 3 stations, 4 stations
 
     for fname in tqdm(files, desc="Validating shards"):
         try:
             with h5py.File(fname, 'r') as f:
                 album_shape    = f['album'].shape     # type: ignore
                 vertices_shape = f['vertices'].shape  # type: ignore
+                n_stations     = f['station_hit_count'][:].flatten()  # type: ignore
+                for n in range(1,5):
+                    hit_counts[n-1] += np.sum(n_stations == n)   
 
                 n_images = album_shape[0]
                 n_labels = vertices_shape[0]
@@ -194,7 +198,13 @@ def main():
             "ref_album_shape"         : list(ref_album_shape),  # type: ignore
             "created_from"            : list(input_dirs),
             "total_images_all_splits" : total_images,
-            "total_shards_all_splits" : len(valid_shards)
+            "total_shards_all_splits" : len(valid_shards),
+            "station_hit_distribution": {
+                "1_station"  : int(hit_counts[0]),
+                "2_stations" : int(hit_counts[1]),
+                "3_stations" : int(hit_counts[2]),
+                "4_stations" : int(hit_counts[3]),
+            }
         },
         "splits": {
             "train" : process_split(train_shards),
