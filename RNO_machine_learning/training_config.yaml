@@ -3,22 +3,23 @@
 data:
   manifest_path: '/data/condor_shared/users/ssued/RNO_vertex_reconstruction_ml/RNO_machine_learning/manifest_builder/manifests/manifest_3albums_500comp.json' # Path to manifest
   cache_dir: '/scratch/users/ssued/rno_cache_compressed' # Path to scratch cache if you have a faster drive.
+  min_station_hits: 1 # Minimum number of station hits to train on. Note: GPU will not be maxed but still quick learning!
 
 training:
-  batch_size: 256
+  batch_size: 256 # Lower batchsize for training multievents
   num_epochs: 100000
   learning_rate: 0.001
-  weight_decay: 0.0 # Usually 1e-4
+  weight_decay: 0.0001 # Usually 1e-4
   checkpoint_freq: 50
 
-resume: # Checkpointing if you want to resume a run. If not, keep null
-  checkpoint_path: 
-  wandb_id: 9ndw91no
+resume: # Checkpointing if you want to resume a run. If not, keep null. wandb_id is last characters in run id!
+  checkpoint_path: /data/condor_shared/users/ssued/RNO_vertex_reconstruction_ml/RNO_machine_learning/model_experiments/model_RNO4_thesis/experiments/sx4h2s9j/checkpoints/checkpoint_e34.pth
+  wandb_id: sx4h2s9j
 
 wandb:
   project: model_RNO4_thesis  # groups all runs of this concept
   enabled: true
-  notes: Keep AdamW but try previous model
+  notes: Trying new checkpointing!
   tags: # Standard syntax for array in YAML
     - compressed
     - 500_shards

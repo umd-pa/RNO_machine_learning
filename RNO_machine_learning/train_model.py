@@ -25,6 +25,7 @@ with open(get_abs_path('training_config.yaml')) as f:
 
 MANIFEST_PATH   = config['data']['manifest_path']
 CACHE_DIR       = config['data']['cache_dir']
+MIN_STATION_HITS = config['data']['min_station_hits']
 BATCH_SIZE      = config['training']['batch_size']
 NUM_EPOCHS      = config['training']['num_epochs']
 LEARNING_RATE   = config['training']['learning_rate']
@@ -47,19 +48,23 @@ test_data  = manifest['splits']['test']['files']
 
 print("Initializing datasets...")
 train_album = dataset.ShardStreamIterableDataset(
-    shard_file_list = train_data,
-    manifest_path   = MANIFEST_PATH,
-    batch_size      = BATCH_SIZE,
-    is_train        = True
+    shard_file_list  = train_data,
+    manifest_path    = MANIFEST_PATH,
+    batch_size       = BATCH_SIZE,
+    is_train         = True,
+    min_station_hits = MIN_STATION_HITS,
+    debug            = False
 )
 
 test_album = dataset.ShardStreamIterableDataset(
-    shard_file_list = test_data,
-    manifest_path   = MANIFEST_PATH,
-    batch_size      = BATCH_SIZE,
-    is_train        = False,
-    label_mean      = train_album.label_mean,
-    label_std       = train_album.label_std
+    shard_file_list  = test_data,
+    manifest_path    = MANIFEST_PATH,
+    batch_size       = BATCH_SIZE,
+    is_train         = False,
+    label_mean       = train_album.label_mean,
+    label_std        = train_album.label_std,
+    min_station_hits = MIN_STATION_HITS,
+    debug            = False
 )
 
 # ========================================================================================
@@ -74,11 +79,12 @@ TEST_PREFETCH_FACTOR = TRAIN_PREFETCH_FACTOR * 2  # Test set is smaller, so can 
 print(f"Calculated train prefetch factor: {TRAIN_PREFETCH_FACTOR} based on average images per shard and batch size.")
 print(f"Calculated test prefetch factor: {TEST_PREFETCH_FACTOR} always double the train prefetch factor")
 # ========================================================================================
+
 train_data_loader = DataLoader(
     dataset            = train_album,
     batch_size         = None,
     shuffle            = False,
-    num_workers        = 2,
+    num_workers        = 2, # Still have to test if more workers is better for station_hits > 1!
     prefetch_factor    = TRAIN_PREFETCH_FACTOR,
     pin_memory         = True,
     persistent_workers = True
@@ -100,8 +106,8 @@ test_data_loader = DataLoader(
 model_params = {
     'hidden_units' : 32,
     'leak_factor'  : 0.1,
-    'dropout_rate' : 0.0,
-    'temporal_res' : 512
+    'dropout_rate' : 0.2,
+    'temporal_res' : 256 # MUST BE SMALLER THAN input time res!
 }
 
 # ====================================================================
@@ -111,24 +117,53 @@ DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 if DEVICE.type == 'cpu':
     print("WARNING: GPU not available, training on CPU!")
 
-model = models.RNO_four_late_non_linear_merge(
+model = models.RNO_four_residual_merge(
     input_shape  = 1,
     output_shape = 3,
     label_mean   = train_album.label_mean,
     label_std    = train_album.label_std,
     **model_params
 )
+# ====================================================================
+# MODEL CONFIG — saved into every checkpoint for self-describing eval
+# Build after model instantiation so __class__.__name__ is available
+# ====================================================================
+model_config = {
+    # Architecture — mirrors the model constructor signature exactly
+    'model_class'     : model.__class__.__name__,  # e.g. 'RNO_four_residual_merge'
+    'input_shape'     : 1,
+    'output_shape'    : 3,
+    **model_params,   # unpacks hidden_units, leak_factor, dropout_rate, temporal_res
 
+    # Dataset — tells the evaluator where the model learned from
+    'manifest_path'   : MANIFEST_PATH,
+    'min_station_hits': MIN_STATION_HITS,
+
+    # Training context — useful for debugging and reproducibility
+    'batch_size'      : BATCH_SIZE,
+    'learning_rate'   : LEARNING_RATE,
+    'weight_decay'    : WEIGHT_DECAY,
+}
 # ====================================================================
-# OPTIMIZER & LOSS
+# OPTIMIZER/LOSS/SCHEDULER
 # ====================================================================
+schduler = None
 optimizer = torch.optim.AdamW(
     params       = model.parameters(),
     lr           = LEARNING_RATE,
     weight_decay = WEIGHT_DECAY,
     fused        = True
 )
+
 loss_fn = torch.nn.MSELoss()
+
+scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+    optimizer,
+    mode      = 'min',
+    factor    = 0.5,
+    patience  = 5,    # wait 5 epochs of no improvement
+    min_lr    = 1e-6, # don't let LR go below this
+)
 
 # ====================================================================
 # EXPERIMENT NAME
@@ -214,11 +249,13 @@ train_test(
     test_dataloader  = test_data_loader,
     optimizer        = optimizer,
     loss_fn          = loss_fn,
+    scheduler        = scheduler,
     device           = DEVICE,
     epochs           = NUM_EPOCHS,
     checkpoint_dir   = checkpoint_dir,
     checkpoint_freq  = CHECKPOINT_FREQ,
-    checkpoint_path  = CHECKPOINT_PATH
+    checkpoint_path  = CHECKPOINT_PATH,
+    model_config     = model_config
 )
 
 if WANDB_ENABLED:

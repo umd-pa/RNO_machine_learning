@@ -26,7 +26,8 @@ def train_test(model: torch.nn.Module,
                checkpoint_freq: int,
                checkpoint_path: str | None = None,
                scheduler: LRScheduler | ReduceLROnPlateau | None = None,
-               min_test_loss_epoch: bool = True):
+               min_test_loss_epoch: bool = True,
+               model_config: dict | None = None):
     """
     Full training and evaluation loop with checkpointing and WandB logging.
 
@@ -61,7 +62,7 @@ def train_test(model: torch.nn.Module,
     # Load checkpoint if resuming — returns the next epoch to train from
     if checkpoint_path:
         print(f"Resuming from checkpoint: {checkpoint_path}")
-        start_epoch = load_checkpoint(model, optimizer, scheduler, device, checkpoint_path)
+        start_epoch = load_checkpoint(model, optimizer, scheduler, device, checkpoint_path, model_config=model_config)
         print(f"Resuming from epoch {start_epoch}")
     else:
         start_epoch = 0
@@ -99,17 +100,18 @@ def train_test(model: torch.nn.Module,
             # step=epoch ensures correct x-axis alignment when resuming mid-run
             if wandb.run:
                 wandb.log({
-                    'Train Loss' : train_loss,
-                    'Test Loss'  : test_loss,
-                    'Epoch Time' : epoch_time,
-                    'Epoch'      : epoch
+                    'Train Loss'   : train_loss,
+                    'Test Loss'    : test_loss,
+                    'Epoch Time'   : epoch_time,
+                    'Epoch'        : epoch,
+                    'Learning Rate': optimizer.param_groups[0]['lr']
                 })
 
             # --- Best model checkpoint ---
             if min_test_loss_epoch and test_loss < test_loss_min:
                 test_loss_min = test_loss
                 best_path = save_checkpoint(epoch, model, optimizer, scheduler,
-                                            train_loss, test_loss, checkpoint_dir, min=True)
+                                            train_loss, test_loss, checkpoint_dir, model_config=model_config, min=True)
 
                 # Upload best checkpoint to WandB — only best model, not every periodic
                 # checkpoint, to avoid excessive artifact storage
@@ -133,7 +135,7 @@ def train_test(model: torch.nn.Module,
             # --- Periodic checkpoint ---
             if epoch % checkpoint_freq == 0 and epoch != 0:
                 save_checkpoint(epoch, model, optimizer, scheduler,
-                                train_loss, test_loss, checkpoint_dir)
+                                train_loss, test_loss, checkpoint_dir, model_config=model_config)
 
             # --- Scheduler step ---
             # ReduceLROnPlateau requires the monitored metric to decide whether
@@ -159,7 +161,7 @@ def train_test(model: torch.nn.Module,
         # Always attempt a final checkpoint on any exit — clean or otherwise
         if train_loss is not None and test_loss is not None:
             save_checkpoint(final_epoch, model, optimizer, scheduler,
-                            train_loss, test_loss, checkpoint_dir)
+                            train_loss, test_loss, checkpoint_dir, model_config=model_config)
             print(f"Final checkpoint saved at epoch {final_epoch} in {checkpoint_dir}")
         else:
             print(f"Exited at epoch {final_epoch} with no recorded losses — no checkpoint saved.")

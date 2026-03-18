@@ -12,7 +12,7 @@ def move_optimizer_to_device(optimizer, device):
                 # else:
                 state[k] = v.to(device)
 
-def save_checkpoint(epoch, model, optimizer, scheduler, train_loss, test_loss, checkpoints_dir, min=False) -> str:
+def save_checkpoint(epoch, model, optimizer, scheduler, train_loss, test_loss, checkpoints_dir, model_config=None, min=False) -> str:
     """
     Saves model, optimizer, and scheduler states to a .pth checkpoint file.
 
@@ -36,6 +36,7 @@ def save_checkpoint(epoch, model, optimizer, scheduler, train_loss, test_loss, c
         'scheduler_state_dict': scheduler.state_dict() if scheduler else None,
         'train_loss'          : train_loss,
         'test_loss'           : test_loss,
+        'model_config'        : model_config
     }
 
     os.makedirs(checkpoints_dir, exist_ok=True)
@@ -50,19 +51,26 @@ def save_checkpoint(epoch, model, optimizer, scheduler, train_loss, test_loss, c
     return checkpoint_path
 
 
-def load_checkpoint(model, optimizer, scheduler, device, checkpoint_path):
+def load_checkpoint(model, optimizer, scheduler, device, checkpoint_path, model_config=None):
     """
     Loads model, optimizer, and scheduler states from a .pth checkpoint file.
     Handles both compiled and uncompiled model state dicts in both directions:
     - Checkpoint saved from compiled model, loading into uncompiled → strips _orig_mod. prefix
     - Checkpoint saved from uncompiled model, loading into compiled → loads via _orig_mod
 
+    Optionally validates that the checkpoint's model_config matches the current
+    run's model_config before loading weights. This catches accidental cross-architecture
+    resumption early — before weights are loaded and training silently corrupts.
+    Validation is skipped gracefully if either config is None (old checkpoints).
+    
     Args:
         model          : The model to load state into (compiled or uncompiled).
         optimizer      : The optimizer to load state into.
         scheduler      : The LR scheduler to load state into, or None.
         device         : Device to move optimizer state to after loading.
         checkpoint_path: Path to the .pth checkpoint file.
+        model_config   : The current run's model config dict from main.py.
+                         If None, validation is skipped for backward compatibility.
 
     Returns:
         int: The next epoch to train from (saved epoch + 1).
@@ -78,6 +86,29 @@ def load_checkpoint(model, optimizer, scheduler, device, checkpoint_path):
     except FileNotFoundError:
         print(f"ERROR: Could not find checkpoint: {checkpoint_path}")
         raise
+
+    # Model configuration validation
+    ckpt_config = loaded_checkpoint.get('model_config')
+    if ckpt_config is not None and model_config is not None:
+        critical_fields = ['model_class', 'hidden_units', 'input_shape', 'output_shape']
+
+        mismatches = []
+        for field in critical_fields:
+            ckpt_val    = ckpt_config.get(field)
+            current_val = model_config.get(field)
+            if ckpt_val != current_val:
+                mismatches.append(
+                    f"  {field}: checkpoint={ckpt_val}, current={current_val}"
+                )
+        if mismatches:
+            raise ValueError(
+                "Model config mismatch between checkpoint and current run!\n"
+                + '\n'.join(mismatches)
+                + "\nFix your training_config.yaml or point to the correct checkpoint."
+            )
+        print("Config validation passed — checkpoint matches current architecture.")
+
+
 
     # Handle compiled vs uncompiled mismatch in both directions:
     # - If model is compiled (_orig_mod exists) but checkpoint is uncompiled → load via _orig_mod
