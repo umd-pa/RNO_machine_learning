@@ -20,8 +20,10 @@ from pathlib import Path
 from datetime import datetime
 from tqdm import tqdm
 import numpy as np
+import warnings
 import torch
 import json
+import glob
 
 
 class ModelEvaluator:
@@ -114,7 +116,7 @@ class ModelEvaluator:
             self.model.eval()
 
             with torch.inference_mode():
-                for (image, true) in tqdm(eval_dloader, desc="Evaluating"):
+                for (image, true) in tqdm(eval_dloader, desc="Evaluating", unit='batch'):
                     image = image.to(self.device)
                     reco  = self.model(image, return_unnormalized=True)
                     true_list.append(true.cpu().numpy())
@@ -278,7 +280,7 @@ class ModelEvaluator:
 
         return dist
 
-    def save_to_log(self, experiment_name: str,
+    def save_to_log(self, experiment_name: str | None = None,
                     log_path: str | Path = 'eval_log.json'):
         """
         Appends this model's evaluation metrics to a shared JSON log file.
@@ -287,12 +289,23 @@ class ModelEvaluator:
         rather than duplicating it. Other models' entries are never touched.
 
         Args:
-            experiment_name: Key for this entry — typically the WandB run ID.
+            experiment_name: Key for this entry. If None, automatically derived
+                            from the checkpoint's parent directory name — which
+                            is the WandB run ID when using the standard directory
+                            structure. Override with a custom name if needed.
             log_path:        Path to the shared JSON log file.
         """
         if self.true_arr is None or self.reco_arr is None:
             print("Error: No results to save. Run evaluation first.")
             return
+
+        # Derive experiment name from checkpoint path if not provided
+        # Structure: .../experiments/<run_id>/checkpoints/checkpoint_min_eX.pth
+        # Parent of checkpoint file = checkpoints dir
+        # Parent of that = run_id dir
+        if experiment_name is None:
+            experiment_name = self.model_checkpoint.parent.parent.name
+            print(f"No experiment name provided — using: {experiment_name}")
 
         log_path = Path(log_path)
 
@@ -303,9 +316,11 @@ class ModelEvaluator:
             valid  = true_R != 0
             rel_R  = np.zeros_like(true_R)
             rel_R[valid] = (reco_R[valid] - true_R[valid]) / true_R[valid]
-            p16_R, p84_R = np.percentile(rel_R, [16, 84])
+            p16_R, p84_R  = np.percentile(rel_R, [16, 84])
+            rel_R_median  = np.median(rel_R)
         else:
             p16_R = p84_R = float('nan')
+            rel_R_median  = float('nan')
 
         # --- Distance metrics ---
         true_cart = np.array([self.spher_2_cart(*r) for r in self.true_arr]) if self.spherical else self.true_arr
@@ -316,12 +331,14 @@ class ModelEvaluator:
         counts, bin_edges = np.histogram(dist, bins=100)
         mode_d = float((bin_edges[np.argmax(counts)] + bin_edges[np.argmax(counts) + 1]) / 2)
 
-        # --- Epoch from checkpoint ---
-        ckpt           = torch.load(self.model_checkpoint, map_location='cpu')
-        checkpoint_epoch = int(ckpt.get('epoch', -1))  # -1 if old checkpoint missing epoch
+        # --- Epoch and notes from checkpoint ---
+        ckpt             = torch.load(self.model_checkpoint, map_location='cpu')
+        checkpoint_epoch = int(ckpt.get('epoch', -1))
+        notes            = ckpt.get('model_config', {}).get('notes', None)
 
         entry = {
             # Relative radius
+            'rel_R_median'       : round(float(rel_R_median), 4),
             'rel_R_p16'          : round(float(p16_R), 4),
             'rel_R_p84'          : round(float(p84_R), 4),
             'rel_R_sigma68'      : round(float((p84_R - p16_R) / 2), 4),
@@ -333,6 +350,7 @@ class ModelEvaluator:
             'n_events'           : int(len(dist)),
             'checkpoint_file'    : str(self.model_checkpoint.name),
             'checkpoint_epoch'   : checkpoint_epoch,
+            'notes'              : notes,
             'evaluated_at'       : datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
         }
 
@@ -347,56 +365,61 @@ class ModelEvaluator:
         with open(log_path, 'w') as f:
             json.dump(log, f, indent=4)
 
-        print(f"Saved to {log_path}")
-        print(f"  rel_R    68%: [{entry['rel_R_p16']:+.4f}, {entry['rel_R_p84']:+.4f}]  σ68={entry['rel_R_sigma68']:.4f}")
-        print(f"  dist     mode={entry['dist_mode_m']:.1f}m  68% containment={entry['dist_68pct_contain']:.1f}m")
-        print(f"  epoch    {checkpoint_epoch}")
-        
-        def plot_3d_displacement(self, n_points: int = 50, seed: int = 42):
-            """
-            Plots a 3D scatter of a subset of events, drawing a line between
-            the True vertex and the Reconstructed vertex to visualize error vectors.
-            """
-            if self.true_arr is None or self.reco_arr is None:
-                print("Error: Evaluation has not been run yet.")
-                return
+        print(f"\n{'='*60}")
+        print(f"  Experiment : {experiment_name}")
+        print(f"  Notes      : {notes or 'None'}")
+        print(f"  Epoch      : {checkpoint_epoch}")
+        print(f"{'='*60}")
+        print(f"  rel_R    median={entry['rel_R_median']:+.4f}  68%: [{entry['rel_R_p16']:+.4f}, {entry['rel_R_p84']:+.4f}]  σ68={entry['rel_R_sigma68']:.4f}")
+        print(f"  dist     mode={entry['dist_mode_m']:.1f}m  median={entry['dist_median_m']:.1f}m  68% containment={entry['dist_68pct_contain']:.1f}m")
+        print(f"  Saved to : {log_path}")
+        print(f"{'='*60}\n")
+    
+    def plot_3d_displacement(self, n_points: int = 50, seed: int = 42):
+        """
+        Plots a 3D scatter of a subset of events, drawing a line between
+        the True vertex and the Reconstructed vertex to visualize error vectors.
+        """
+        if self.true_arr is None or self.reco_arr is None:
+            print("Error: Evaluation has not been run yet.")
+            return
 
-            import matplotlib.pyplot as plt
+        import matplotlib.pyplot as plt
 
-            if self.spherical:
-                print("Temporarily converting a subset back to Cartesian for 3D plotting...")
-                true_data = np.array([self.spher_2_cart(*row) for row in self.true_arr])
-                reco_data = np.array([self.spher_2_cart(*row) for row in self.reco_arr])
-            else:
-                true_data = self.true_arr
-                reco_data = self.reco_arr
+        if self.spherical:
+            print("Temporarily converting a subset back to Cartesian for 3D plotting...")
+            true_data = np.array([self.spher_2_cart(*row) for row in self.true_arr])
+            reco_data = np.array([self.spher_2_cart(*row) for row in self.reco_arr])
+        else:
+            true_data = self.true_arr
+            reco_data = self.reco_arr
 
-            np.random.seed(seed)
-            n_points = min(n_points, len(true_data))
-            indices  = np.random.choice(len(true_data), n_points, replace=False)
-            t_sample = true_data[indices]
-            r_sample = reco_data[indices]
+        np.random.seed(seed)
+        n_points = min(n_points, len(true_data))
+        indices  = np.random.choice(len(true_data), n_points, replace=False)
+        t_sample = true_data[indices]
+        r_sample = reco_data[indices]
 
-            fig = plt.figure(figsize=(10, 8))
-            ax  = fig.add_subplot(111, projection='3d')
+        fig = plt.figure(figsize=(10, 8))
+        ax  = fig.add_subplot(111, projection='3d')
 
-            t_x, t_y, t_z = t_sample[:, 0], t_sample[:, 1], t_sample[:, 2]
-            r_x, r_y, r_z = r_sample[:, 0], r_sample[:, 1], r_sample[:, 2]
+        t_x, t_y, t_z = t_sample[:, 0], t_sample[:, 1], t_sample[:, 2]
+        r_x, r_y, r_z = r_sample[:, 0], r_sample[:, 1], r_sample[:, 2]
 
-            ax.scatter(t_x, t_y, t_z, c='mediumseagreen', marker='o', s=40, label='True Vertex', alpha=0.8)   # type: ignore
-            ax.scatter(r_x, r_y, r_z, c='tomato',         marker='X', s=40, label='Reco Vertex', alpha=0.8)   # type: ignore
+        ax.scatter(t_x, t_y, t_z, c='mediumseagreen', marker='o', s=40, label='True Vertex', alpha=0.8)   # type: ignore
+        ax.scatter(r_x, r_y, r_z, c='tomato',         marker='X', s=40, label='Reco Vertex', alpha=0.8)   # type: ignore
 
-            for i in range(n_points):
-                ax.plot([t_x[i], r_x[i]], [t_y[i], r_y[i]], [t_z[i], r_z[i]],
-                        color='gray', linestyle='-', linewidth=1, alpha=0.5)
+        for i in range(n_points):
+            ax.plot([t_x[i], r_x[i]], [t_y[i], r_y[i]], [t_z[i], r_z[i]],
+                    color='gray', linestyle='-', linewidth=1, alpha=0.5)
 
-            ax.set_title(f'3D Vertex Displacement (Subset of {n_points} events)')
-            ax.set_xlabel('X (m)')
-            ax.set_ylabel('Y (m)')
-            ax.set_zlabel('Z (m)')
-            ax.legend()
-            plt.tight_layout()
-            plt.show()
+        ax.set_title(f'3D Vertex Displacement (Subset of {n_points} events)')
+        ax.set_xlabel('X (m)')
+        ax.set_ylabel('Y (m)')
+        ax.set_zlabel('Z (m)')
+        ax.legend()
+        plt.tight_layout()
+        plt.show()
 
     def save_results(self, filename: str | Path = "eval_results.npz"):
         """Saves the evaluation arrays to a compressed NumPy file."""
@@ -476,9 +499,16 @@ class ModelEvaluator:
         # Resolve directory to best checkpoint file
         if checkpoint_path.is_dir():
             matches = list(checkpoint_path.glob('*min_e*'))
-            if not matches:
-                raise FileNotFoundError(f"No best checkpoint found in {checkpoint_path}")
-            checkpoint_path = matches[0]
+            if matches:
+                checkpoint_path = matches[0]
+            else:
+                warnings.warn(f"No 'min_e' checkpoint found in {checkpoint_path}. Falling back to the latest checkpoint.")
+                all_checkpoints = [p for p in checkpoint_path.iterdir() if p.is_file()]
+
+                if not all_checkpoints:
+                    raise FileNotFoundError(f"No checkpoints found at all in {checkpoint_path}")
+                
+                checkpoint_path = max(all_checkpoints, key=lambda p: p.stat().st_mtime)
 
         ckpt = torch.load(checkpoint_path, map_location='cpu')
         cfg  = ckpt.get('model_config')
@@ -520,10 +550,18 @@ class ModelEvaluator:
             min_station_hits = cfg.get('min_station_hits', 1),
         )
 
-        print("Loaded config from checkpoint:")
+        # Load notes and experiment name from checkpoint
+        notes           = cfg.get('notes', None)
+        experiment_name = checkpoint_path.parent.parent.name  # <run_id>
+
+        print(f"\n{'='*60}")
+        print(f"  Experiment : {experiment_name}")
+        print(f"  Notes      : {notes or 'None'}")
+        print(f"{'='*60}")
         print(f"  Model    : {cfg['model_class']} | hidden_units={cfg['hidden_units']} | temporal_res={cfg.get('temporal_res', 256)}")
         print(f"  Manifest : {cfg['manifest_path']}")
         print(f"  Training : lr={cfg.get('learning_rate')} | wd={cfg.get('weight_decay')} | min_hits={cfg.get('min_station_hits', 1)}")
+        print(f"{'='*60}\n")
 
         return cls(
             model            = model,
@@ -533,3 +571,100 @@ class ModelEvaluator:
             spherical        = spherical,
             device           = device,
         )
+    
+    def show_error_vs_radius(self, n_bins: int = 10):
+        """
+        Plots mean absolute relative radius error as a function of true radius.
+        Reveals whether the model performs differently at different distances —
+        the shrinkage bias often worsens for large-radius (distant) events.
+
+        Args:
+            n_bins: Number of radius bins to divide events into.
+        """
+        if self.true_arr is None or self.reco_arr is None:
+            print("Error: Evaluation has not been run yet.")
+            return
+
+        import matplotlib.pyplot as plt
+
+        # Work in spherical — R is column 0
+        true_R = self.true_arr[:, 0]
+        reco_R = self.reco_arr[:, 0]
+
+        valid  = true_R != 0
+        rel_R  = np.zeros_like(true_R)
+        rel_R[valid] = (reco_R[valid] - true_R[valid]) / true_R[valid]
+
+        # Also compute 3D distance error in Cartesian
+        true_cart = np.array([self.spher_2_cart(*r) for r in self.true_arr])
+        reco_cart = np.array([self.spher_2_cart(*r) for r in self.reco_arr])
+        dist_err  = np.sqrt(((reco_cart - true_cart)**2).sum(axis=1))
+
+        # Bin events by true radius
+        bin_edges  = np.percentile(true_R, np.linspace(0, 100, n_bins + 1))
+        bin_centers, mean_rel_R, mean_dist, median_dist = [], [], [], []
+
+        for i in range(n_bins):
+            mask = (true_R >= bin_edges[i]) & (true_R < bin_edges[i+1])
+            if mask.sum() == 0:
+                continue
+            bin_centers.append(float(np.median(true_R[mask])))
+            mean_rel_R.append(float(np.mean(rel_R[mask])))
+            mean_dist.append(float(np.mean(dist_err[mask])))
+            median_dist.append(float(np.median(dist_err[mask])))
+
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
+
+        # Plot 1: mean relative radius error vs true radius
+        ax1.plot(bin_centers, mean_rel_R, 'o-', color='royalblue', linewidth=2)
+        ax1.axhline(0, color='black', linestyle='--', linewidth=1, alpha=0.5)
+        ax1.fill_between(bin_centers, mean_rel_R, 0,
+                        alpha=0.2, color='royalblue')
+        ax1.set_xlabel('True Radius (m)')
+        ax1.set_ylabel('Mean Relative Radius Error')
+        ax1.set_title('Relative Radius Error vs True Radius\n(negative = undershooting)')
+        ax1.grid(alpha=0.3)
+
+        # Plot 2: mean/median euclidean distance error vs true radius
+        ax2.plot(bin_centers, mean_dist,   'o-', color='tomato',     linewidth=2, label='Mean')
+        ax2.plot(bin_centers, median_dist, 's-', color='darkorange',  linewidth=2, label='Median')
+        ax2.set_xlabel('True Radius (m)')
+        ax2.set_ylabel('Distance Error (m)')
+        ax2.set_title('3D Distance Error vs True Radius')
+        ax2.legend()
+        ax2.grid(alpha=0.3)
+
+        plt.tight_layout()
+        plt.show()
+
+        # Print summary table
+        print(f"\n{'True R bin (m)':<20} {'Mean rel_R':>12} {'Mean dist (m)':>15} {'Median dist (m)':>16}")
+        print('-' * 65)
+        for i in range(len(bin_centers)):
+            print(f"{bin_centers[i]:<20.0f} {mean_rel_R[i]:>+12.4f} {mean_dist[i]:>15.1f} {median_dist[i]:>16.1f}")
+
+def get_experiment_checkpoints(EXPERIMENTS_DIR):
+    """
+    Locates checkpoint directories for all experiments within a root directory.
+    
+    This function scans subdirectories of the provided root path for a folder 
+    named 'checkpoints' and maps the experiment's name to its full path.
+
+    Args:
+        EXPERIMENTS_DIR (str): The base directory where experiments are stored.
+
+    Returns:
+        dict: A dictionary where keys are experiment names (folder names) 
+              and values are the full string paths to their 'checkpoints' folder.
+    """
+    # Find all directories matching the pattern: Root/Experiment_Name/checkpoints
+    experiment_checkpoint_paths = [Path(path) for path in glob.glob(EXPERIMENTS_DIR + '/*/checkpoints')]
+    
+    # Extract the name of the experiment (the parent folder of the 'checkpoints' dir)
+    experiment_names = [str(experiment_path.parent.name) for experiment_path in experiment_checkpoint_paths]
+    
+    # Convert Path objects back to strings for the final dictionary values
+    experiment_checkpoint_paths = [str(experiment_checkpoint_path) for experiment_checkpoint_path in experiment_checkpoint_paths]
+    
+    # Pair names with their paths into a searchable dictionary
+    return dict(zip(experiment_names, experiment_checkpoint_paths))
