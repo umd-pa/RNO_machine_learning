@@ -775,7 +775,6 @@ class PreloadShardIterableDataset(IterableDataset):
         """Total number of full batches across all shards."""
         return self.num_images // self.batch_size
 
-
 class ShardStreamIterableDataset(IterableDataset):
     """
     An IterableDataset that streams pre-built batches directly from HDF5 shards,
@@ -785,40 +784,52 @@ class ShardStreamIterableDataset(IterableDataset):
     Key design decisions:
     - Single background thread only — more threads = HDD head thrashing on spinning disk.
       Benchmarked: 1 thread @ 258MB/s vs 2 threads @ 92+75MB/s each. 1 wins.
-    - Leftovers kept as numpy arrays — avoids costly torch.cat on full ~2GB shard tensors.
-      np.concatenate on a small leftover slice (<batch_size samples) is orders of magnitude cheaper.
-    - torch.from_numpy() is zero-copy — shares memory with numpy array.
-    - unsqueeze(1) and index slicing are views — no allocation.
-    - .float() applied only to batch slice (512 images), not full shard (5000 images).
+    - Leftovers kept as numpy arrays — avoids costly torch.cat on full shard tensors.
+      np.concatenate on a small leftover slice (<batch_size samples) is much cheaper.
+    - torch.from_numpy() is zero-copy — shares memory with the numpy array.
+    - unsqueeze(1) and index slicing are views — no new tensor allocation.
+    - .float() applied only to the batch slice, not the full shard.
     - Normalization done in-place on CPU tensors before yielding.
+    - station_hit_count filtering applied immediately after decompression —
+      reduces downstream tensor operations when filtering is active.
     - Must be used with DataLoader(batch_size=None) — batches are pre-assembled here.
-    - debug=False in production — flush=True prints are syscalls on every shard.
+    - debug=False in production — flush=True prints are syscalls on every shard boundary.
     """
 
     def __init__(self, shard_file_list, manifest_path, batch_size,
-                 is_train=True, label_mean=None, label_std=None, debug=False):
+                 is_train=True, label_mean=None, label_std=None,
+                 debug=False, min_station_hits=1):
         """
         Args:
-            shard_file_list (list): Absolute paths to .hdf5 shard files.
-            manifest_path   (str):  Path to the dataset manifest JSON.
-            batch_size      (int):  Number of samples per yielded batch.
-            is_train        (bool): If True, shuffles shard order and indices each epoch.
-            label_mean   (Tensor):  Per-coordinate mean for label normalization.
-            label_std    (Tensor):  Per-coordinate std for label normalization.
-            debug           (bool): If True, prints per-shard timing. Keep False in production —
-                                    flush=True is a syscall on every shard boundary.
+            shard_file_list  (list): Absolute paths to .hdf5 shard files.
+            manifest_path    (str):  Path to the dataset manifest JSON.
+            batch_size       (int):  Number of samples per yielded batch.
+            is_train         (bool): If True, shuffles shard order and indices each epoch.
+            label_mean    (Tensor):  Per-coordinate mean for label normalization.
+                                     If None and is_train=True, computed automatically.
+            label_std     (Tensor):  Per-coordinate std for label normalization.
+                                     If None and is_train=True, computed automatically.
+            debug            (bool): If True, prints per-shard timing breakdown.
+                                     Keep False in production — flush=True is a syscall
+                                     on every shard boundary.
+            min_station_hits  (int): Minimum number of station hits required to include
+                                     an event. Default=1 includes all events.
+                                     Use 2+ to restrict to multi-station events only,
+                                     which carry TDoA triangulation information.
         """
         print('\nInitializing ShardStreamIterableDataset...')
-        self.shard_files = shard_file_list
-        self.path        = manifest_path
-        self.is_train    = is_train
-        self.batch_size  = batch_size
-        self.debug       = debug
+        self.shard_files      = shard_file_list
+        self.path             = manifest_path
+        self.is_train         = is_train
+        self.batch_size       = batch_size
+        self.debug            = debug
+        self.min_station_hits = min_station_hits
 
         # ============================================================
         # PASS 1: Validate shard paths and count total samples.
         # Opens each file just to read shape metadata — no image data
-        # loaded into RAM here.
+        # loaded into RAM here. If min_station_hits > 1, reads hit counts
+        # to get the true filtered image count for accurate __len__.
         # ============================================================
         total_bytes     = 0
         self.num_images = 0
@@ -830,16 +841,25 @@ class ShardStreamIterableDataset(IterableDataset):
             total_bytes += os.path.getsize(path)
             try:
                 with h5py.File(path, 'r') as f:
-                    self.num_images += f['album'].shape[0]
+                    if min_station_hits > 1:
+                        # Read hit counts to get accurate filtered event count
+                        hits = f['station_hit_count'][:].squeeze()
+                        self.num_images += int(np.sum(hits >= min_station_hits))
+                    else:
+                        self.num_images += f['album'].shape[0]
             except Exception as e:
                 print(f"Error reading shape from {path}: {e}")
 
         print(f'Size of all shards combined: {total_bytes * 1e-9:.4f} GB')
+        if min_station_hits > 1:
+            print(f'Filtering to events with >= {min_station_hits} station hits.')
 
         # ============================================================
         # PASS 2: Normalization stats.
         # Train set computes global mean/std from labels only — not images.
         # Test set receives train stats — never fit stats on test set.
+        # If filtering is active, stats are computed on filtered labels only
+        # so normalization reflects the actual training distribution.
         # ============================================================
         if is_train and (label_mean is None or label_std is None):
             print("--> MODE: Auto-computing normalization stats (labels only)...")
@@ -848,7 +868,11 @@ class ShardStreamIterableDataset(IterableDataset):
             for path in tqdm(self.shard_files, desc="Aggregating Labels"):
                 try:
                     with h5py.File(path, 'r') as f:
-                        all_labels.append(f['vertices'][:])
+                        labels = f['vertices'][:]
+                        if min_station_hits > 1:
+                            hits   = f['station_hit_count'][:].squeeze()
+                            labels = labels[hits >= min_station_hits]
+                        all_labels.append(labels)
                 except Exception as e:
                     print(f"Error reading labels from {path}: {e}")
 
@@ -881,20 +905,28 @@ class ShardStreamIterableDataset(IterableDataset):
     @staticmethod
     def _load_shard(shard_path):
         """
-        Loads images and labels from a single HDF5 shard.
+        Loads images, labels, and station hit counts from a single HDF5 shard.
+
+        Returns all three arrays so the caller can apply hit count filtering
+        without a second file open. squeeze() on station_hit_count returns a
+        view (no copy) — faster than flatten() which always allocates.
 
         Static method — must be picklable for ThreadPoolExecutor.
         locking=False is safe here since we only read and each worker
         owns a disjoint set of shards (zero cross-worker file access).
+
+        Returns:
+            tuple: (images_np, labels_np, hits_np) as numpy arrays.
         """
         with h5py.File(shard_path, 'r', locking=False) as f:
-            return f['album'][:], f['vertices'][:]
+            return f['album'][:], f['vertices'][:], f['station_hit_count'][:].squeeze()
 
     def __iter__(self):
         worker_info = get_worker_info()
         worker_id   = worker_info.id if worker_info else 0
         num_workers = worker_info.num_workers if worker_info else 1
 
+        # Each worker owns a disjoint slice of shards — no cross-worker contention
         my_shards = self.shard_files[worker_id::num_workers]
         if self.is_train:
             my_shards = my_shards.copy()
@@ -922,10 +954,17 @@ class ShardStreamIterableDataset(IterableDataset):
                 # Block until current shard is ready.
                 # If async is working well: t_wait ≈ 0 (loaded during yield)
                 # If shard too small to hide load: t_wait > 0 (partial overlap)
-                # If shard tiny vs load time: t_wait ≈ load_time (no benefit)
                 t0 = time.perf_counter()
                 try:
-                    images_np, labels_np = future.result()
+                    images_np, labels_np, hits_np = future.result()
+
+                    # Apply station hit filter immediately after load —
+                    # reduces all downstream operations when filtering is active
+                    if self.min_station_hits > 1:
+                        mask      = hits_np >= self.min_station_hits
+                        images_np = images_np[mask]
+                        labels_np = labels_np[mask]
+
                 except Exception as e:
                     print(f"[Worker {worker_id}] FAILED TO READ {shard_path}: {e}")
                     # Still submit next shard before skipping current
@@ -934,13 +973,9 @@ class ShardStreamIterableDataset(IterableDataset):
                     continue
                 t_wait = time.perf_counter() - t0
 
-                # -------------------------------------------------------
-                # Submit NEXT shard load immediately after current is ready
-                # — before any tensor conversion or processing.
-                # This gives the background thread maximum overlap time
-                # while we convert tensors and yield batches to the GPU.
-                # Single thread only — no parallel HDD reads.
-                # -------------------------------------------------------
+                # Submit next shard immediately — before filtering or tensor conversion
+                # so the background thread has maximum time to load while we
+                # process the current shard
                 if shard_idx + 1 < len(my_shards):
                     future = executor.submit(self._load_shard, my_shards[shard_idx + 1])
 
@@ -964,7 +999,7 @@ class ShardStreamIterableDataset(IterableDataset):
                 t_convert = time.perf_counter() - t1
 
                 # Shuffle index array only — permutes small int tensor,
-                # not the full ~2GB image tensor
+                # not the full image tensor
                 if self.is_train:
                     indices = torch.randperm(len(combined_imgs))
                 else:
@@ -976,7 +1011,7 @@ class ShardStreamIterableDataset(IterableDataset):
                 t2 = time.perf_counter()
                 for start_idx in range(0, len(indices) - self.batch_size + 1, self.batch_size):
                     batch_indices = indices[start_idx : start_idx + self.batch_size]
-                    # .float() on batch slice only (512 imgs), not full shard (5000 imgs)
+                    # .float() on batch slice only, not full shard
                     yield (combined_imgs[batch_indices].float(),
                            combined_lbls[batch_indices])
                     last_idx        = start_idx + self.batch_size
@@ -1005,13 +1040,18 @@ class ShardStreamIterableDataset(IterableDataset):
                    torch.from_numpy(leftover_lbls_np).float())
 
     def __len__(self):
-        """Total number of full batches across all shards."""
+        """
+        Total number of batches this dataset will yield per epoch.
+
+        For train: leftovers combine across shard boundaries so almost all
+        images eventually form full batches — floor division is correct.
+
+        For test: a final ragged batch is yielded for any remaining samples
+        so no events are dropped during evaluation.
+        """
         if self.is_train:
-            # Leftovers combine across shard boundaries, almost all images
-            # eventually form full batches — floor division is correct
             return self.num_images // self.batch_size
         else:
-            # Test set yields a final ragged batch for leftover samples
             full_batches  = self.num_images // self.batch_size
             has_remainder = (self.num_images % self.batch_size) > 0
             return full_batches + (1 if has_remainder else 0)

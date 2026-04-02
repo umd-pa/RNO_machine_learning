@@ -1,5 +1,0 @@
-# HTCondor DAG - Simulation Shards Pipeline
-
-
-JOB CLEANUP2 /data/condor_shared/users/ssued/RNO_vertex_reconstruction_ml/RNO_album_maker/jobs/submissions/stepF.sub
-VARS CLEANUP2 myscript="/data/condor_shared/users/ssued/RNO_vertex_reconstruction_ml/RNO_album_maker/simulation/simulation_steps/F_cleanup.py" target_dir="/data/condor_shared/users/ssued/RNO_vertex_reconstruction_ml/RNO_album_maker/simulation/simulation_data" store_nurs="/data/condor_shared/users/ssued/testing" logdir="/data/condor_shared/users/ssued/RNO_vertex_reconstruction_ml/RNO_album_maker/jobs/job_logs"
