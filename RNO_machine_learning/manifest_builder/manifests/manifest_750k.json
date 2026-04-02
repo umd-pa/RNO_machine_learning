@@ -13,7 +13,13 @@
             "/data/i3store/users/ssued/albums/sharded/rno_sim_shards_v1_p3_compressed"
         ],
         "total_images_all_splits": 763179,
-        "total_shards_all_splits": 1499
+        "total_shards_all_splits": 1499,
+        "station_hit_distribution": {
+            "1_station"     : 674601,
+            "2_stations"    : 83936,
+            "3_stations"    : 4472,
+            "4_stations"    : 170
+        }
     },
     "splits": {
         "train": {

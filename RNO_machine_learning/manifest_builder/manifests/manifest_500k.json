@@ -1,7 +1,12 @@
 {
     "metadata": {
-        "created_at": "2026-03-16 10:03:51",
+        "created_at": "2026-03-28 16:48:53",
         "seed": 42,
+        "split_ratios": [
+            0.8,
+            0.1,
+            0.1
+        ],
         "ref_album_shape": [
             24,
             1024,
@@ -12,7 +17,13 @@
             "/data/i3store/users/ssued/albums/sharded/rno_sim_shards_v1_p2_compressed"
         ],
         "total_images_all_splits": 508647,
-        "total_shards_all_splits": 999
+        "total_shards_all_splits": 999,
+        "station_hit_distribution": {
+            "1_station": 449424,
+            "2_stations": 56070,
+            "3_stations": 3038,
+            "4_stations": 115
+        }
     },
     "splits": {
         "train": {
