@@ -299,3 +299,42 @@ def check_for_duplicates(manifest_path):
         print("\n✅ NO DUPLICATES FOUND!")
         print("   All events are unique across the dataset.")
         return None
+    
+def get_channel_loc(detector_path, station_id, channel_id):
+    with open(detector_path, 'r') as f:
+        detector_config = json.load(f)
+
+    station_vertex = None
+    channel_vertex = None
+
+    # 1. Find the station coordinates
+    # Using .items() is much cleaner and faster for iterating through dictionaries
+    for st_key, st_data in detector_config.get('stations', {}).items():
+        # Note: Based on NuRadioMC's JSON structure, the key is usually 'station_id', not 'id'
+        if st_data.get('station_id') == station_id:
+            station_vertex = np.array([
+                st_data.get('pos_easting', 0.0), 
+                st_data.get('pos_northing', 0.0), 
+                st_data.get('pos_altitude', 0.0)
+            ])
+            break # Stop looping once we find it
+            
+    # 2. Find the channel coordinates
+    for ch_key, ch_data in detector_config.get('channels', {}).items():
+        # We must match BOTH the station_id and the channel_id
+        if ch_data.get('channel_id') == channel_id:
+            channel_vertex = np.array([
+                ch_data.get('ant_position_x', 0.0), 
+                ch_data.get('ant_position_y', 0.0), 
+                ch_data.get('ant_position_z', 0.0)
+            ])
+            break # Stop looping once we find it
+            
+    # 3. Handle cases where the station or channel isn't found
+    if station_vertex is None:
+        raise ValueError(f"Station ID {station_id} not found in {detector_path}")
+    if channel_vertex is None:
+        raise ValueError(f"Channel ID {channel_id} for Station {station_id} not found in {detector_path}")
+
+    # Return the absolute position
+    return station_vertex + channel_vertex

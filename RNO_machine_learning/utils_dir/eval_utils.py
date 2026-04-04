@@ -200,7 +200,7 @@ class ModelEvaluator:
                         label=f'Mean: {mean_rel:+.3f} ({mean_rel:+.2%})')
             plt.axvline(median_rel, color='darkorange', linestyle='dashed', linewidth=2,
                         label=f'Median: {median_rel:+.3f} ({median_rel:+.2%})')
-            plt.title('Relative Error of Reconstructed Radius (R)')
+            plt.title(f'Relative Error of Reconstructed Radius for {self.model_checkpoint.name}')
             plt.xlabel('Relative Error: (R_reco - R_true) / R_true')
             plt.ylabel('Number of Events')
             plt.legend()
@@ -270,7 +270,7 @@ class ModelEvaluator:
             plt.axvline(p68,      color='seagreen',   linestyle='dotted', linewidth=2,
                         label=f'68% containment: {p68:.0f} m')
             plt.axvspan(0, p68, color='mediumseagreen', alpha=0.15)
-            plt.title('3D Euclidean Distance Error')
+            plt.title(f'3D Euclidean Distance Error for {self.model_checkpoint.name}')
             plt.xlabel('Distance Error (m)')
             plt.ylabel('Number of Events')
             plt.legend()

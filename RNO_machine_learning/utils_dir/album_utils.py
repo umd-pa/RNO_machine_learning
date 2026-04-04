@@ -1,10 +1,12 @@
 from h5py import File
 from tqdm import tqdm
+import matplotlib.pyplot as plt
 import h5py
 import numpy as np
 import glob
 import os
 import shutil
+import json
 import time
 import sys
 
@@ -134,6 +136,61 @@ def recompress_shards(input_dir, output_dir):
 
     print(f"Done! Recompressed {len(files)} shards to {output_dir}")
 
+def plot_manifest_radius_distribution(manifest_path: str):
+    # 1. Load the manifest
+    print(f"Loading manifest from: {manifest_path}")
+    with open(manifest_path, 'r') as f:
+        manifest = json.load(f)
+        
+    # 2. Collect all shards across all splits
+    all_shards = []
+    for split in ['train', 'val', 'test']:
+        if split in manifest.get('splits', {}):
+            shards = manifest['splits'][split].get('files', [])
+            all_shards.extend(shards)
+            print(f" -> Found {len(shards)} shards in '{split}' split.")
+            
+    if not all_shards:
+        raise ValueError("No shards found in the manifest!")
+        
+    print(f"Total shards to process: {len(all_shards)}")
+    
+    all_vertices = []
+    
+    # 3. Read the vertices directly from the HDF5 files
+    print("Extracting true vertices directly from HDF5 files...")
+    for shard_path in tqdm(all_shards, desc="Reading HDF5 Shards"):
+        try:
+            with h5py.File(shard_path, 'r') as h5_file:
+                # Read all vertices in this shard into memory
+                # Adjust 'vertices' if the key in your HDF5 is slightly different
+                vertices = h5_file['vertices'][:]
+                all_vertices.append(vertices)
+        except Exception as e:
+            print(f"\nError reading {shard_path}: {e}")
+            
+    # 4. Concatenate everything into one massive array
+    final_vertices = np.concatenate(all_vertices, axis=0)
+    print(f"\nExtracted {len(final_vertices)} total events.")
+    
+    # 5. Calculate True Radius (assuming Cartesian X, Y, Z are the first 3 columns)
+    # If the vertices are already spherical (R, Theta, Phi), change to: R = final_vertices[:, 0]
+    R = np.sqrt(np.sum(final_vertices[:, :3]**2, axis=1))
+    
+    # 6. Plot the Reality Check Histogram
+    print("Plotting distribution...")
+    plt.figure(figsize=(10, 6))
+    
+    counts, bins, _ = plt.hist(R, bins=100, color='royalblue', edgecolor='black', alpha=0.8)
+    
+    plt.title('True Radius (R) Distribution Across All Manifest Shards', fontsize=14)
+    plt.xlabel('True Radius (meters)', fontsize=12)
+    plt.ylabel('Number of Events', fontsize=12)
+    plt.grid(axis='y', alpha=0.3)
+    
+    plt.tight_layout()
+    plt.show()
+
 def inspect_hdf5_layout(file_path):
     print(f"Inspecting: {file_path}")
     print("-" * 50)
@@ -159,7 +216,7 @@ def inspect_hdf5_layout(file_path):
                     print("  - [!] Warning: Dataset is NOT chunked (Contiguous layout)")
                 print("-" * 50)
 
-def rechunk_shards(input_dir, output_dir):
+def filter_and_rechunk_shards(input_dir, output_dir, voltage_threshold=0.03):
     # 1. Create output directory if it doesn't exist
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
@@ -172,33 +229,57 @@ def rechunk_shards(input_dir, output_dir):
     # Optimized Chunk Shape: (1 sample, 24 bins, 1024 stations, 4 channels)
     NEW_CHUNKS = (1, 24, 1024, 4)
 
-    for file_path in tqdm(files, desc="Rechunking Shards"):
+    for file_path in tqdm(files, desc="Filtering & Rechunking"):
         file_name = os.path.basename(file_path)
         output_path = os.path.join(output_dir, file_name)
 
         with h5py.File(file_path, 'r') as f_in:
+            # First, check if the expected datasets exist to avoid key errors
+            if 'album' not in f_in:
+                continue
+                
+            # Load the album array into memory to calculate maximums
+            album_data = f_in['album'][:] # type: ignore
+            
+            # Find the max voltage per sample across all spatial/temporal/channel dims.
+            # NOTE: We use np.abs() so we catch signals that spike negatively past -0.05V too.
+            # axis=tuple(range(1, album_data.ndim)) flattens dimensions (24, 1024, 4) 
+            # to check the max of each individual sample in the batch.
+            sample_maxes = np.max(np.abs(album_data), axis=tuple(range(1, album_data.ndim))) # type: ignore
+            
+            # Create an array of indices where the condition is met
+            valid_indices = np.where(sample_maxes > voltage_threshold)[0]
+            
+            # If the shard is entirely empty/low-voltage, skip saving a useless file
+            if len(valid_indices) == 0:
+                # Optional: print(f"Skipping {file_name}: 0 samples passed the filter.")
+                continue
+
             with h5py.File(output_path, 'w') as f_out:
                 # Copy attributes (metadata)
                 for attr_name, attr_value in f_in.attrs.items():
                     f_out.attrs[attr_name] = attr_value
 
-                # Process each dataset
+                # Process each dataset using the parallel indices
                 for key in f_in.keys():
-                    data = f_in[key]
+                    # Extract only the valid samples. 
+                    # Because valid_indices is applied to f_in[key][:], 
+                    # element 0 of the filtered data always corresponds across all sets.
+                    filtered_data = f_in[key][:][valid_indices] # type: ignore
                     
                     if key == 'album':
-                        # Apply the new chunking to the heavy image data
+                        # Ensure the chunk size isn't larger than the remaining data
+                        chunk_shape = NEW_CHUNKS if filtered_data.shape[0] >= NEW_CHUNKS[0] else True # type: ignore
+                        
                         f_out.create_dataset(
                             key, 
-                            data=data, 
-                            chunks=NEW_CHUNKS,
-                            shuffle=True,      # Keeps it fast for the 4090
-                            compression=None   # High-speed I/O
+                            data=filtered_data, 
+                            chunks=chunk_shape,     # Keeps it fast for the 4090
+                            compression="gzip", compression_opts=1   # High-speed I/O
                         )
                     else:
-                        # For small datasets (vertices, etc), 
-                        # just copy them as they are
-                        f_out.create_dataset(key, data=data, chunks=True)
+                        # For small datasets (vertices, station_hit_count), copy as chunks=True
+                        f_out.create_dataset(key, data=filtered_data, chunks=True)
 
 def copy_event(album_source, album_dest_path, event_idx):
     """
@@ -330,3 +411,144 @@ def copy_with_progress(src, dst, buffer_size=1024*1024):
     # Preserve metadata (timestamps) like copy2 does
     shutil.copystat(src, dst)
     print(f"Backup complete: {dst}")
+
+def verify_and_plot_splits(manifest_path, title = None):
+    """
+    Loads a JSON dataset manifest, checks for data leakage between splits, 
+    extracts the vertex coordinates (x, y, z) from the HDF5 shards, 
+    and plots their normalized distributions.
+    
+    Args:
+        manifest_path (str): The absolute file path to the JSON manifest.
+        title (str): Optional string to add to plot title
+    """
+    # 1. Load the manifest
+    with open(manifest_path, 'r') as f:
+        manifest = json.load(f)
+        
+    splits = ['train', 'val', 'test']
+    colors = {'train': 'blue', 'val': 'green', 'test': 'red'}
+    
+    # 2. Data Leakage Check
+    train_set = set(manifest['splits']['train']['files'])
+    val_set = set(manifest['splits']['val']['files'])
+    test_set = set(manifest['splits']['test']['files'])
+    
+    leak_train_val = train_set.intersection(val_set)
+    leak_train_test = train_set.intersection(test_set)
+    leak_val_test = val_set.intersection(test_set)
+    
+    print("--- Data Leakage Check ---")
+    if not leak_train_val and not leak_train_test and not leak_val_test:
+        print("✅ SUCCESS: No overlapping shards found between splits. Data is isolated.")
+    else:
+        print("❌ WARNING: Data leakage detected!")
+        if leak_train_val: print(f"Train/Val overlap: {len(leak_train_val)} files")
+        if leak_train_test: print(f"Train/Test overlap: {len(leak_train_test)} files")
+        if leak_val_test: print(f"Val/Test overlap: {len(leak_val_test)} files")
+    print("--------------------------\n")
+
+    # Dictionary to store concatenated arrays for each split
+    data = {s: {'x': [], 'y': [], 'z': []} for s in splits}
+    
+    # 3. Extract data safely from the HDF5 shards
+    print("Extracting vertex data from shards...")
+    for split in splits:
+        file_paths = manifest['splits'][split]['files']
+        
+        for shard_path in file_paths:
+            try:
+                # Open the actual shard, NOT the manifest
+                with h5py.File(shard_path, 'r') as h5_file:
+                    # Assuming 'vertices' is shape (N, 3). Adjust slicing if different!
+                    verts = h5_file['vertices'][:] 
+                    data[split]['x'].append(verts[:, 0])
+                    data[split]['y'].append(verts[:, 1])
+                    data[split]['z'].append(verts[:, 2])
+            except Exception as e:
+                print(f"Error loading {shard_path}: {e}")
+        
+        # Concatenate all shards for this split into a single 1D numpy array
+        if data[split]['x']:
+            data[split]['x'] = np.concatenate(data[split]['x'])
+            data[split]['y'] = np.concatenate(data[split]['y'])
+            data[split]['z'] = np.concatenate(data[split]['z'])
+
+    # 4. Plotting
+    print("Generating plots...")
+    fig, axes = plt.subplots(3, 1, figsize=(6, 12))
+    
+    # Plot X, Y, Z histograms
+    for split in splits:
+        if len(data[split]['x']) == 0: 
+            continue
+        
+        # We use density=True to normalize the histograms. 
+        # Since Train has 80% of data and Val/Test have 10%, standard counts 
+        # would make Val/Test look tiny. Density scales them to be comparable.
+        axes[0].hist(data[split]['x'], bins=50, alpha=0.5, density=True, 
+                     color=colors[split], label=f'{split.capitalize()}')
+        axes[1].hist(data[split]['y'], bins=50, alpha=0.5, density=True, 
+                     color=colors[split], label=f'{split.capitalize()}')
+        axes[2].hist(data[split]['z'], bins=50, alpha=0.5, density=True, 
+                     color=colors[split], label=f'{split.capitalize()}')
+        
+    axes[0].set_title('X Coordinate Distribution')
+    axes[0].set_xlabel('X (m)')
+    axes[0].set_ylabel('Density')
+    axes[0].legend()
+    
+    axes[1].set_title('Y Coordinate Distribution')
+    axes[1].set_xlabel('Y (m)')
+    axes[1].legend()
+    
+    axes[2].set_title('Z Coordinate Distribution (Depth)')
+    axes[2].set_xlabel('Z (m)')
+    axes[2].legend()
+    
+    if title is None:
+        plt.suptitle('Neutrino Interaction Vertex Distributions Across Splits', fontsize=16)
+    else:
+        plt.suptitle(title, fontsize=16)
+    plt.tight_layout()
+    plt.show()
+
+
+def verify_filtered_shards(input_dir, voltage_threshold=0.05):
+    files = sorted(glob.glob(os.path.join(input_dir, "*.hdf5")))
+    print(f"Found {len(files)} shards to verify.")
+
+    total_events = 0
+    failed_events = 0
+
+    for file_path in tqdm(files, desc="Verifying Shards", unit="shard"):
+        with h5py.File(file_path, 'r') as f_in:
+            if 'album' not in f_in:
+                print(f'ERROR! No "album" dataset found in {file_path}. Skipping.')
+                continue
+                
+            album_data = f_in['album'][:] # type: ignore
+            num_samples = album_data.shape[0] # type: ignore
+            total_events += num_samples
+            
+            # 1. Vectorized check (Instantaneous)
+            sample_maxes = np.max(album_data, axis=(1,2,3)) # type: ignore
+            
+            # Find any events that FAILED the threshold (<= 0.05V)
+            bad_indices = np.where(sample_maxes <= voltage_threshold)[0]
+            
+            if len(bad_indices) > 0:
+                # print(f"\nWARNING! {file_path} contains {len(bad_indices)} dead/low-V events!")
+                # print('At indices:', bad_indices) # for debugging
+                failed_events += len(bad_indices)
+
+            # 2. Parallelism Check: Make sure vertices/hit_counts didn't get misaligned
+            if 'vertices' in f_in and f_in['vertices'].shape[0] != num_samples: # type: ignore
+                print(f"\nCRITICAL ALIGNMENT ERROR in {file_path}: 'album' has {num_samples} events, but 'vertices' has {f_in['vertices'].shape[0]}.") # type: ignore
+
+    failed_ratio = failed_events / total_events
+
+    print("\n--- Verification Complete ---")
+    print(f"Total events checked: {total_events}")
+    print(f"Events failing threshold (SHOULD BE 0): {failed_events}")
+    print(f'Failed Ratio: {failed_ratio:.4f}')
