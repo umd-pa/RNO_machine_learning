@@ -20,6 +20,7 @@ from __future__ import absolute_import, division, print_function
 import argparse
 import json
 import logging
+import os
 import time
 import numpy as np
 import h5py
@@ -36,6 +37,15 @@ from NuRadioReco.detector.generic_detector import GenericDetector
 #   MAIN EXECUTION
 # ==============================================================================
 
+def get_abs_path(rel_path):
+    """
+    Converts a relative path to an absolute path based on 
+    the location of THIS script (create_dagman.py).
+    """
+    # This gets the folder where create_dagman.py lives (e.g., .../jobs/)
+    base = os.path.dirname(os.path.abspath(__file__))
+    return os.path.abspath(os.path.join(base, rel_path))
+
 def main():
     start_time = time.time()
 
@@ -50,7 +60,7 @@ def main():
     # Input/Output Arguments
     parser.add_argument('--input_file', 
                         type=str, 
-                        default='../simulation_data/simulated_events.nur',
+                        default='get_abs_path("../simulation_data/simulated_events.nur")',
                         help='Path to the input .nur simulation file')
     
     parser.add_argument('--output_file', 
@@ -60,7 +70,7 @@ def main():
     
     parser.add_argument('--detector_file', 
                         type=str, 
-                        default='../simulation_data/RNO_four_stations.json',
+                        default='get_abs_path("../simulation_data/RNO_four_stations.json")',
                         help='Path to the detector JSON file')
 
     # Image Configuration Arguments

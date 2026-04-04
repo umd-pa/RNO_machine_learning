@@ -41,22 +41,22 @@ def main():
 
     parser.add_argument('--input_file',
                         type=str,
-                        default='../simulation_data/neutrinos.hdf5',
+                        default='get_abs_path("../simulation_data/neutrinos.hdf5")',
                         help='Path to the HDF5 file containing generated neutrino events to be simulated.')
     
     parser.add_argument('--output_file',
                         type=str,
-                        default='../simulation_data/simulated_events.nur',
+                        default='get_abs_path("../simulation_data/simulated_events.nur")',
                         help='Name of the .nur file the simulated events will be written into.')
     
     parser.add_argument('--detector_file',
                         type=str,
-                        default='../simulation_data/RNO_four_stations.json',
+                        default='get_abs_path("../simulation_data/RNO_four_stations.json")',
                         help='Path to the JSON file containing the detector description.')
     
     parser.add_argument('--config_file',
                         type=str,
-                        default='../simulation_data/config.yaml',
+                        default='get_abs_path("../simulation_data/config.yaml")',
                         help='Path to the .yaml file containing the simulation configuration.')
     
     parser.add_argument('--noise_level',
