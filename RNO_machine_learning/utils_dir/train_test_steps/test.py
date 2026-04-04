@@ -1,4 +1,3 @@
-import wandb
 import torch
 import time
 
@@ -8,7 +7,7 @@ def test_step(
     data_loader: torch.utils.data.DataLoader,
     loss_fn: torch.nn.Module,
     device: torch.device | str,
-) -> float:
+) -> tuple[float, float]:
     """
     Performs one full test epoch over the entire batched dataset.
 
@@ -16,47 +15,54 @@ def test_step(
     as it disables both gradient tracking and version tracking. Combined with
     bfloat16 autocast for consistent precision with the training step.
 
-    Loss tensors are accumulated on the GPU and synced to CPU only once at
-    the end of the epoch, matching the same pattern as train_step.
-
-    WandB logging is conditional on an active run (wandb.run is not None)
-    — no flag needs to be passed. If WandB is disabled, all logging is
-    silently skipped.
+    Loss and Euclidean error tensors are accumulated on the GPU and synced
+    to CPU only once at the end of the epoch, matching the same pattern as
+    train_step. Euclidean error is computed in physical space (meters) by
+    unnormalizing predictions and targets using the model's registered
+    label_mean and label_std buffers.
 
     Args:
         model      : PyTorch model to evaluate. Must already be on `device`.
+                     Must have label_mean and label_std registered as buffers.
         data_loader: DataLoader providing (images, labels) batches.
-        loss_fn    : Loss function (e.g., MSELoss).
+        loss_fn    : Loss function (e.g., HuberLoss).
         device     : Device to run computations on (CPU/CUDA).
 
     Returns:
-        float: Mean test loss across all batches in the epoch.
+        tuple[float, float]: (mean_test_loss, mean_euclidean_error_meters)
     """
     model.eval()
 
-    batch_test_losses = []
-    total_imgs        = 0
-    start_time        = time.time()
+    batch_test_losses  = []
+    batch_euclidean    = []
+    total_imgs         = 0
+    start_time         = time.time()
 
     with torch.inference_mode():
         for batch, (X, y) in enumerate(data_loader):
 
-            # Async transfer — CPU does not wait for GPU transfer to complete
             X, y = X.to(device, non_blocking=True), y.to(device, non_blocking=True)
 
-            # bfloat16 forward pass — consistent precision with train_step
             with torch.autocast(device_type='cuda', dtype=torch.bfloat16):
                 y_pred = model(X)
                 loss   = loss_fn(y_pred, y.squeeze(1))
 
+            # Unnormalize to physical space for Euclidean error
+            y_squeezed   = y.squeeze(1)
+            pred_m       = (y_pred     * model.label_std) + model.label_mean
+            target_m     = (y_squeezed * model.label_std) + model.label_mean
+            euclidean    = torch.sqrt(((pred_m - target_m) ** 2).sum(dim=-1)).mean()
+
             total_imgs += X.size(0)
 
-            # Stay on GPU — no CPU sync until end of epoch
             batch_test_losses.append(loss.detach())
+            batch_euclidean.append(euclidean.detach())
 
             if batch > 0 and batch % 10 == 0:
                 avg_speed = total_imgs / (time.time() - start_time)
                 print(f"TEST: Batch {batch:4d} | Speed: {avg_speed:7.2f} img/s")
 
-    # Single CPU sync — stack all GPU loss tensors, mean, then .item()
-    return torch.stack(batch_test_losses).mean().item()
+    mean_loss      = torch.stack(batch_test_losses).mean().item()
+    mean_euclidean = torch.stack(batch_euclidean).mean().item()
+
+    return mean_loss, mean_euclidean

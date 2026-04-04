@@ -70,7 +70,7 @@ def train_step(
 
         if batch % 100 == 0:
             avg_speed = total_imgs / (time.time() - start_time)
-            print(f"TRAIN: Batch {batch:4d} | Speed: {avg_speed:7.2f} img/s")
+            print(f"TRAIN: Batch {batch:4d} | Speed: {avg_speed:7.2f} img/s | Loss: {loss.detach():.4f}")
 
     # Single CPU sync — stack all GPU loss tensors, mean, then .item()
     avg_loss = torch.stack(batch_train_losses).mean().item()
