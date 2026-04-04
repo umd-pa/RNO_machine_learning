@@ -36,8 +36,9 @@ def get_abs_path(rel_path):
     return os.path.abspath(os.path.join(base, rel_path))
 
 def main():
+    path_to_config = get_abs_path('create_dagman_config.yaml')
     parser = argparse.ArgumentParser(description="DAG Generator for NuRadioReco")
-    parser.add_argument('--config', type=str, required=True, help='Path to the YAML config file')
+    parser.add_argument('--config', type=str, default=f'{path_to_config}', help='Path to the YAML config file')
     parser.add_argument('--album_dir', type=str, required=True, 
                         help='The album directory where final shards are saved')
     args = parser.parse_args()
