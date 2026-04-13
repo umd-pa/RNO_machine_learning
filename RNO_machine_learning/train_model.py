@@ -157,12 +157,11 @@ optimizer = torch.optim.AdamW(
 
 loss_fn = torch.nn.MSELoss()
 
-scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
     optimizer,
-    mode      = 'min',
-    factor    = 0.5,
-    patience  = 5,    # wait 5 epochs of no improvement
-    min_lr    = 1e-6, # don't let LR go below this
+    T_0=5,        # The number of epochs before the first restart
+    T_mult=2,      # Multiplier. 1st cycle=10 epochs, 2nd=20, 3rd=40...
+    eta_min=1e-5   # The lowest the learning rate will go before a restart
 )
 
 # ====================================================================
