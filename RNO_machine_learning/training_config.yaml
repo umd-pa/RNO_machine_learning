@@ -7,17 +7,22 @@ data:
 
 training:
   batch_size: 256 # Lower batchsize for training multievents
-  num_epochs: 100000
+  num_epochs: 1000
   learning_rate: 0.001
   weight_decay: 0.0001 # Usually 1e-4
-  checkpoint_freq: 50
+  checkpoint_freq: 10
+  early_stopping_patience: 20
+  learning_rate: 0.0001
+  weight_decay: 0.0001
+  dropout_rate: 0.1
+
 
 resume: # Checkpointing if you want to resume a run. If not, keep null. wandb_id is last characters in run id!
   checkpoint_path: null
   wandb_id: null
 
 wandb:
-  project: name_of_project  # groups all runs of this concept
+  project: my_proj  # groups all runs of this concept
   enabled: true # Wandb strongly recommended but not necessary.
   notes: Trying new checkpointing!
   tags: # Standard syntax for array in YAML
