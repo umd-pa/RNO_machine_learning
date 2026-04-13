@@ -30,7 +30,7 @@ def _stable_dest_name(src):
     name, ext = os.path.splitext(base)
     return f"{name}_{path_hash}{ext}"  # e.g. shard_0000001_a3f2b1c4.hdf5
 
-def stage_manifest_to_scratch(manifest_path, cache_dir, force=False):
+def stage_manifest_to_scratch(manifest_path, cache_dir=None, force=False):
     """
     Stages all HDF5 shards referenced in a dataset manifest from network
     storage to local scratch, and returns an updated manifest dict with
@@ -80,6 +80,10 @@ def stage_manifest_to_scratch(manifest_path, cache_dir, force=False):
         manifest = json.load(f)
 
     # Failsafe: if scratch unavailable, return manifest unchanged
+    if cache_dir is None:
+        print(f"No cache_dir provided. Falling back to original network paths.")
+        return manifest
+        
     if not os.path.exists(cache_dir):
         print(f"⚠️ Warning: {cache_dir} not found. Falling back to original network paths.")
         return manifest
