@@ -1,18 +1,21 @@
 # training_config.yaml
 
 data:
-  manifest_path: '/data/condor_shared/users/ssued/RNO_vertex_reconstruction_ml/RNO_machine_learning/manifest_builder/manifests/manifest_1M.json' # Path to manifest
+  manifest_path: 'path_to_manifest' # Path to manifest 
   cache_dir: null # Path to scratch cache if you have a faster drive. Leave null if no cacheing necessary
   min_station_hits: 1 # Minimum number of station hits to train on. Note: GPU will not be maxed but still quick learning!
+  project: my_proj  # groups all runs of this project
+
 
 training:
   batch_size: 256 # Lower batchsize for training multievents
   num_epochs: 1000
   learning_rate: 0.001
   weight_decay: 0.0001 # Usually 1e-4
-  checkpoint_freq: 10
+  checkpoint_freq: 1
   early_stopping_patience: 20
   dropout_rate: 0.1
+  hidden_units: 64
 
 
 resume: # Checkpointing if you want to resume a run. If not, keep null. wandb_id is last characters in run id!
@@ -20,9 +23,8 @@ resume: # Checkpointing if you want to resume a run. If not, keep null. wandb_id
   wandb_id: null
 
 wandb:
-  project: my_proj  # groups all runs of this concept
-  enabled: true # Wandb strongly recommended but not necessary.
-  notes: Trying new checkpointing!
+  enabled: false # Wandb strongly recommended but not necessary.
+  notes: Insert notes here!
   tags: # Standard syntax for array in YAML
     - tag1
     - tag2

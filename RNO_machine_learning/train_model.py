@@ -9,7 +9,6 @@ from torch.utils.data import DataLoader
 from utils_dir.train_test import train_test
 from utils_dir import dataset, models
 from utils_dir import my_utils
-
 torch.set_float32_matmul_precision('high')
 torch.backends.cudnn.benchmark = True
 
@@ -22,12 +21,13 @@ def get_abs_path(rel_path):
 # ====================================================================
 # CONFIG
 # ====================================================================
-with open(get_abs_path('training_config.yaml')) as f:
+with open(get_abs_path('training_config.yaml'), 'r', encoding='utf-8') as f:
     config = yaml.safe_load(f)
 
 MANIFEST_PATH    = config['data']['manifest_path']
 CACHE_DIR        = config['data']['cache_dir']
 MIN_STATION_HITS = config['data']['min_station_hits']
+PROJECT_NAME     = config['data']['project']
 BATCH_SIZE       = config['training']['batch_size']
 NUM_EPOCHS       = config['training']['num_epochs']
 LEARNING_RATE    = config['training']['learning_rate']
@@ -39,7 +39,6 @@ LEAK_FACTOR      = config['training'].get('leak_factor', 0)
 EARLY_STOPPING   = config['training'].get('early_stopping_patience', None)
 WANDB_ID         = config['resume']['wandb_id']
 CHECKPOINT_PATH  = config['resume']['checkpoint_path']
-PROJECT_NAME     = config['wandb']['project']
 WANDB_ENABLED    = config['wandb']['enabled']
 NOTES            = config['wandb']['notes']
 TAGS             = config['wandb']['tags']
@@ -52,6 +51,7 @@ model_params = {
     'temporal_res' : config['training'].get('temporal_res', 128),
 }
 
+file_handle = None
 if WANDB_ENABLED:
     wandb.init(
         project = PROJECT_NAME,
@@ -84,16 +84,17 @@ if WANDB_ENABLED:
     for key in model_params:
         if key in cfg:
             model_params[key] = cfg[key]
-
+else:
+    file_handle = open(os.path.join(get_abs_path('model_experiments'), PROJECT_NAME, 'training_log.txt'), 'a')
 # ====================================================================
 # DATA
 # ====================================================================
-print("Staging data to scratch...")
+my_utils.log_print("Staging data to scratch...", file_handle)
 manifest   = dataset.stage_manifest_to_scratch(MANIFEST_PATH, cache_dir=CACHE_DIR)
 train_data = manifest['splits']['train']['files']
 test_data  = manifest['splits']['test']['files']
 
-print("Initializing datasets...")
+my_utils.log_print("Initializing datasets...", file_handle)
 train_album = dataset.ShardStreamIterableDataset(
     shard_file_list  = train_data,
     manifest_path    = MANIFEST_PATH,
@@ -120,8 +121,8 @@ avg_imgs_per_shard    = TOT_IMGS / TOT_SHARDS
 TRAIN_PREFETCH_FACTOR = int(round(avg_imgs_per_shard / BATCH_SIZE) + 1)
 TEST_PREFETCH_FACTOR  = TRAIN_PREFETCH_FACTOR * 2
 
-print(f"Calculated train prefetch factor: {TRAIN_PREFETCH_FACTOR}")
-print(f"Calculated test prefetch factor:  {TEST_PREFETCH_FACTOR}")
+my_utils.log_print(f"Calculated train prefetch factor: {TRAIN_PREFETCH_FACTOR}", file_handle)
+my_utils.log_print(f"Calculated test prefetch factor:  {TEST_PREFETCH_FACTOR}", file_handle)
 
 train_data_loader = DataLoader(
     dataset            = train_album,
@@ -148,7 +149,7 @@ test_data_loader = DataLoader(
 # ====================================================================
 DEVICE = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 if DEVICE.type == 'cpu':
-    print("WARNING: GPU not available, training on CPU!")
+    my_utils.log_print("WARNING: GPU not available, training on CPU!", file_handle)
 
 model = models.RNO_four_branch_resnet(
     input_shape  = 1,
@@ -284,12 +285,12 @@ os.makedirs(checkpoint_dir, exist_ok=True)
 # ====================================================================
 # STARTUP SUMMARY
 # ====================================================================
-print(f"Experiment : {experiment_name}")
-print(f"Device     : {DEVICE}")
-print(f"Batches    : {len(train_data_loader)} train | {len(test_data_loader)} test")
-print(f"Checkpoints: {checkpoint_dir}")
+my_utils.log_print(f"Experiment : {experiment_name}", file_handle)
+my_utils.log_print(f"Device     : {DEVICE}", file_handle)
+my_utils.log_print(f"Batches    : {len(train_data_loader)} train | {len(test_data_loader)} test", file_handle)
+my_utils.log_print(f"Checkpoints: {checkpoint_dir}", file_handle)
 if WANDB_ENABLED and wandb.run:
-    print(f"WandB      : {wandb.run.url}")
+    my_utils.log_print(f"WandB      : {wandb.run.url}", file_handle)
 
 # ====================================================================
 # TRAIN
@@ -307,5 +308,9 @@ train_test(
     checkpoint_freq         = CHECKPOINT_FREQ,
     checkpoint_path         = CHECKPOINT_PATH,
     early_stopping_patience = EARLY_STOPPING,
-    model_config            = model_config
+    model_config            = model_config,
+    file_handle             = file_handle
 )
+
+if file_handle:
+    file_handle.close()

@@ -7,7 +7,8 @@ Author: Santiago Sued
 from torch.optim.lr_scheduler import LRScheduler, ReduceLROnPlateau
 from .train_test_steps.train import train_step
 from .train_test_steps.test import test_step
-from .my_utils import save_checkpoint, load_checkpoint
+from .my_utils import save_checkpoint, load_checkpoint, log_print
+import typing
 import traceback
 import wandb
 import torch
@@ -28,7 +29,9 @@ def train_test(model: torch.nn.Module,
                scheduler: LRScheduler | ReduceLROnPlateau | None = None,
                min_test_loss_epoch: bool = True,
                early_stopping_patience: int | None = None,
-               model_config: dict | None = None):
+               model_config: dict | None = None,
+               file_handle: typing.TextIO | None = None
+               ):
     """
     Full training and evaluation loop with checkpointing and WandB logging.
 
@@ -66,11 +69,11 @@ def train_test(model: torch.nn.Module,
     patience      = 0
 
     if checkpoint_path:
-        print(f"Resuming from checkpoint: {checkpoint_path}")
+        log_print(f"Resuming from checkpoint: {checkpoint_path}", file_handle)
         start_epoch, test_loss_min = load_checkpoint(
             model, optimizer, scheduler, device, checkpoint_path, model_config=model_config
         )
-        print(f"Resuming from epoch {start_epoch}")
+        log_print(f"Resuming from epoch {start_epoch}", file_handle)
     else:
         start_epoch = 0
 
@@ -97,7 +100,7 @@ def train_test(model: torch.nn.Module,
 
             epoch_time = time.time() - epoch_start
 
-            print(f"Epoch {epoch} | Train Loss: {train_loss:.4f} | Test Loss: {test_loss:.4f} | Euclidean Error: {euclidean_error:.4f} m | Time: {epoch_time:.1f}s")
+            log_print(f"Epoch {epoch} | Train Loss: {train_loss:.4f} | Test Loss: {test_loss:.4f} | Euclidean Error: {euclidean_error:.4f} m | Time: {epoch_time:.1f}s", file_handle)
 
             if test_loss < test_loss_min:
                 test_loss_min = test_loss
@@ -124,12 +127,12 @@ def train_test(model: torch.nn.Module,
                             try:
                                 os.remove(os.path.join(checkpoint_dir, filename))
                             except OSError as e:
-                                print(f"WARNING: Could not remove old checkpoint {filename}: {e}")
+                                log_print(f"WARNING: Could not remove old checkpoint {filename}: {e}", file_handle)
 
             else:
                 patience += 1
                 if early_stopping_patience is not None and patience >= early_stopping_patience:
-                    print(f"Early stopping: test loss has not improved for {early_stopping_patience} epochs.")
+                    log_print(f"Early stopping: test loss has not improved for {early_stopping_patience} epochs.", file_handle)
                     break
 
             if wandb.run:
@@ -160,12 +163,12 @@ def train_test(model: torch.nn.Module,
 
     except BaseException as e:
         if isinstance(e, KeyboardInterrupt):
-            print("Training interrupted by user (Ctrl+C)")
+            log_print("Training interrupted by user (Ctrl+C)", file_handle)
         elif isinstance(e, SystemExit):
-            print("Training terminated by system signal")
+            log_print("Training terminated by system signal", file_handle)
         else:
-            print(f"Training failed at epoch {final_epoch}")
-            print(traceback.format_exc())
+            log_print(f"Training failed at epoch {final_epoch}", file_handle)
+            log_print(traceback.format_exc())
 
     finally:
         if train_loss is not None and test_loss is not None:
@@ -174,9 +177,9 @@ def train_test(model: torch.nn.Module,
                 train_loss, test_loss, checkpoint_dir,
                 test_loss_min=test_loss_min, model_config=model_config
             )
-            print(f"Final checkpoint saved at epoch {final_epoch} in {checkpoint_dir}")
+            log_print(f"Final checkpoint saved at epoch {final_epoch} in {checkpoint_dir}", file_handle)
         else:
-            print(f"Exited at epoch {final_epoch} with no recorded losses — no checkpoint saved.")
+            log_print(f"Exited at epoch {final_epoch} with no recorded losses — no checkpoint saved.", file_handle)
 
         if wandb.run:
             wandb.summary['final_epoch']    = final_epoch

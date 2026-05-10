@@ -238,3 +238,10 @@ def auto_name(*layers):
         counts[layer_type] = counts.get(layer_type, 0) + 1
         named_layers[f"{layer_type}_{counts[layer_type]}"] = layer
     return named_layers
+
+def log_print(message, file_handle=None):
+    """Write to stdout and optionally to a file."""
+    print(message)
+    if file_handle:
+        file_handle.write(message + '\n')
+        file_handle.flush()
