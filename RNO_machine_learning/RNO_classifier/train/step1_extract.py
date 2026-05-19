@@ -101,6 +101,7 @@ def iter_events(nur_path: str, label: int):
                 noiseless = np.stack([sim_data[c] for c in SIM_CHANNELS])
 
         snr = _snr(noised, noiseless)
+        noised = np.clip(noised,-1,1) # Voltage clamped between -1 and 1 after SNR is calculated & before waveform is read to HDF5 file
 
         energy = vertex = weight = None
         if label == 1:
