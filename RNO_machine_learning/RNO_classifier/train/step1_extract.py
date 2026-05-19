@@ -89,20 +89,33 @@ def iter_events(nur_path: str, label: int):
         if len(ch_data) < 4:
             warnings.warn(f"Skipping event: only found channels {list(ch_data.keys())}")
             continue
-        noised = np.stack([ch_data[c] for c in NOISED_CHANNELS])
+        noised_undigitized = np.stack([ch_data[c] for c in NOISED_CHANNELS])
 
-        noiseless = None
+        noiseless_undigitized = None
         if station.has_sim_station():
             sim = station.get_sim_station()
             sim_data = {sc.get_id(): sc.get_trace().astype(np.float32)
                         for sc in sim.iter_channels()
                         if sc.get_id() in SIM_CHANNELS}
             if len(sim_data) == 4:
-                noiseless = np.stack([sim_data[c] for c in SIM_CHANNELS])
+                noiseless_undigitized = np.stack([sim_data[c] for c in SIM_CHANNELS])
 
-        snr = _snr(noised, noiseless)
-        noised = np.clip(noised,-1,1) # Voltage clamped between -1 and 1 after SNR is calculated & before waveform is read to HDF5 file
+        snr = _snr(noised_undigitized, noiseless_undigitized)
 
+        def digitize(values, bits=12, v_min=0, v_max=1):
+            """Simulate digitization to N bits with given voltage range."""
+            # Quantize to integer levels
+            levels = 2**bits - 1  # e.g., 4095 for 12-bit
+            # Scale to [0, levels]
+            scaled = (np.asarray(values) - v_min) / (v_max - v_min) * levels
+            # Round to nearest integer
+            digitized = np.round(scaled).astype(int)
+            # Optionally convert back to voltage
+            return digitized / levels * (v_max - v_min) + v_min
+        
+        noised = digitize(noised_undigitized, bits=12, v_min=-1, v_max=1) # Quantized and clamped noise between -1 and 1 volts
+        noiseless = digitize(noiseless_undigitized, bits=12, v_min=-1, v_max=1)
+        
         energy = vertex = weight = None
         if label == 1:
             primary = event.get_primary()
