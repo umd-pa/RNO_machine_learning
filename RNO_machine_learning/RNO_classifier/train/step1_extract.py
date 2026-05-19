@@ -43,7 +43,7 @@ NOISED_CHANNELS = [0, 1, 2, 3]
 SIM_CHANNELS    = [40, 41, 42, 43]
 
 
-# ── SNR helpers ───────────────────────────────────────────────────────────────
+# ── helpers ───────────────────────────────────────────────────────────────
 
 def _snr(noised: np.ndarray, noiseless: np.ndarray | None) -> np.ndarray:
     """Per-channel SNR = V_p2p / (2 * noise_rms), shape (4,).
@@ -70,6 +70,16 @@ def _snr(noised: np.ndarray, noiseless: np.ndarray | None) -> np.ndarray:
             snr[i]    = v_p2p / (2 * noise_rms) if noise_rms > 0 else 0.0
     return snr
 
+def digitize(values, bits=14, v_min=-1, v_max=1):
+    """Simulate digitization to N bits with given voltage range."""
+    # Quantize to integer levels
+    levels = 2**bits - 1  # e.g., 4095 for 12-bit
+    # Scale to [0, levels]
+    scaled = (np.asarray(values) - v_min) / (v_max - v_min) * levels
+    # Round to nearest integer
+    digitized = np.round(scaled).astype(int)
+    # Convert back to voltage
+    return digitized / levels * (v_max - v_min) + v_min
 
 # ── event iterator ────────────────────────────────────────────────────────────
 
@@ -101,20 +111,9 @@ def iter_events(nur_path: str, label: int):
                 noiseless_undigitized = np.stack([sim_data[c] for c in SIM_CHANNELS])
 
         snr = _snr(noised_undigitized, noiseless_undigitized)
-
-        def digitize(values, bits=12, v_min=0, v_max=1):
-            """Simulate digitization to N bits with given voltage range."""
-            # Quantize to integer levels
-            levels = 2**bits - 1  # e.g., 4095 for 12-bit
-            # Scale to [0, levels]
-            scaled = (np.asarray(values) - v_min) / (v_max - v_min) * levels
-            # Round to nearest integer
-            digitized = np.round(scaled).astype(int)
-            # Optionally convert back to voltage
-            return digitized / levels * (v_max - v_min) + v_min
         
-        noised = digitize(noised_undigitized, bits=12, v_min=-1, v_max=1) # Quantized and clamped noise between -1 and 1 volts
-        noiseless = digitize(noiseless_undigitized, bits=12, v_min=-1, v_max=1)
+        noised = digitize(noised_undigitized, bits=14, v_min=-1, v_max=1) # Quantized and clamped noise between -1 and 1 volts
+        noiseless = digitize(noiseless_undigitized, bits=14, v_min=-1, v_max=1)
         
         energy = vertex = weight = None
         if label == 1:
