@@ -70,7 +70,7 @@ def _snr(noised: np.ndarray, noiseless: np.ndarray | None) -> np.ndarray:
             snr[i]    = v_p2p / (2 * noise_rms) if noise_rms > 0 else 0.0
     return snr
 
-def digitize(values, bits=14, v_min=-1, v_max=1):
+def digitize(values, bits=14, v_min=-.5, v_max=.5):
     """Simulate digitization to N bits with given voltage range."""
     # Quantize to integer levels
     levels = 2**bits - 1  # e.g., 4095 for 12-bit
@@ -110,11 +110,20 @@ def iter_events(nur_path: str, label: int):
             if len(sim_data) == 4:
                 noiseless_undigitized = np.stack([sim_data[c] for c in SIM_CHANNELS])
 
-        snr = _snr(noised_undigitized, noiseless_undigitized)
         
-        noised = digitize(noised_undigitized, bits=14, v_min=-1, v_max=1) # Quantized and clamped noise between -1 and 1 volts
-        noiseless = digitize(noiseless_undigitized, bits=14, v_min=-1, v_max=1)
-        
+
+        noised_undigitized=noised_undigitized*1500 # Amplifying by 1500x
+        if noiseless_undigitized is not None: # Only amplify noiseless dataset if it has content
+            noiseless_undigitized=noiseless_undigitized*1500
+
+        noised = digitize(noised_undigitized, bits=14, v_min=-.5, v_max=.5) # Quantized and clamped noise between -.5 and .5 volts
+        if noiseless_undigitized is not None: # Only quantize noiseless dataset if it has content
+            noiseless = digitize(noiseless_undigitized, bits=14, v_min=-.5, v_max=.5)
+        else:
+            noiseless = noiseless_undigitized
+
+        snr = _snr(noised, noiseless) # Calculating SNR with amplified digitized data
+
         energy = vertex = weight = None
         if label == 1:
             primary = event.get_primary()
@@ -124,7 +133,7 @@ def iter_events(nur_path: str, label: int):
                 vertex = np.array(primary.get_parameter(pp.vertex), dtype=np.float32)[:3]
 
         yield {
-            "waveform": noised,
+            "waveform": noised_undigitized,
             "snr":      snr,
             "energy":   np.float32(energy if energy is not None else float("nan")),
             "vertex":   vertex if vertex is not None else np.full(3, float("nan"), np.float32),
