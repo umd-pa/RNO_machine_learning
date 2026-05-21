@@ -70,12 +70,16 @@ def _snr(noised: np.ndarray, noiseless: np.ndarray | None) -> np.ndarray:
             snr[i]    = v_p2p / (2 * noise_rms) if noise_rms > 0 else 0.0
     return snr
 
-def digitize(values, bits=14, v_min=-.5, v_max=.5):
+def digitize(values, bits=6, v_min=-.5, v_max=.5):
     """Simulate digitization to N bits with given voltage range."""
+    # Turn values into Numpy array
+    values = np.asarray(values)
+    # Clip
+    values = np.clip(values,v_min,v_max)
     # Quantize to integer levels
     levels = 2**bits - 1  # e.g., 4095 for 12-bit
     # Scale to [0, levels]
-    scaled = (np.asarray(values) - v_min) / (v_max - v_min) * levels
+    scaled = (values - v_min) / (v_max - v_min) * levels
     # Round to nearest integer
     digitized = np.round(scaled).astype(int)
     # Convert back to voltage
@@ -111,18 +115,18 @@ def iter_events(nur_path: str, label: int):
                 noiseless_undigitized = np.stack([sim_data[c] for c in SIM_CHANNELS])
 
         
-
+        noised_undigitized[:,50] = .001 # Code for pulse generation
         noised_undigitized=noised_undigitized*1500 # Amplifying by 1500x
         if noiseless_undigitized is not None: # Only amplify noiseless dataset if it has content
             noiseless_undigitized=noiseless_undigitized*1500
 
-        noised = digitize(noised_undigitized, bits=14, v_min=-.5, v_max=.5) # Quantized and clamped noise between -.5 and .5 volts
+        noised = digitize(noised_undigitized, bits=6, v_min=-.5, v_max=.5) # Quantized and clamped noise between -.5 and .5 volts
         if noiseless_undigitized is not None: # Only quantize noiseless dataset if it has content
-            noiseless = digitize(noiseless_undigitized, bits=14, v_min=-.5, v_max=.5)
+            noiseless = digitize(noiseless_undigitized, bits=6, v_min=-.5, v_max=.5)
         else:
             noiseless = noiseless_undigitized
 
-        snr = _snr(noised, noiseless) # Calculating SNR with amplified digitized data
+        snr = _snr(noised_undigitized, noiseless_undigitized) # Calculating SNR with amplified undigitized data
 
         energy = vertex = weight = None
         if label == 1:
@@ -133,7 +137,7 @@ def iter_events(nur_path: str, label: int):
                 vertex = np.array(primary.get_parameter(pp.vertex), dtype=np.float32)[:3]
 
         yield {
-            "waveform": noised_undigitized,
+            "waveform": noised,
             "snr":      snr,
             "energy":   np.float32(energy if energy is not None else float("nan")),
             "vertex":   vertex if vertex is not None else np.full(3, float("nan"), np.float32),
