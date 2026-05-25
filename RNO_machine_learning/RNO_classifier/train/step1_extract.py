@@ -1,10 +1,10 @@
 """
 Stage 1: Extract raw waveforms from one or more .nur files into a single HDF5 file.
 
-Run once for signal, once for noise:
+Run once for signal, once for noise. If you want typical amplification (x1500) use:
 
-    python extract.py --input signal1.nur signal2.nur --label 1 --out signal.h5
-    python extract.py --input noise1.nur noise2.nur   --label 0 --out noise.h5
+    python extract.py --input signal1.nur signal2.nur --label 1 --hw-resp SCALE --out signal.h5
+    python extract.py --input noise1.nur noise2.nur   --label 0 --hw-resp SCALE --out noise.h5
 
 Output HDF5 layout:
     /waveforms   float32  (N, 4, T)  — raw voltage traces, channels 0–3
