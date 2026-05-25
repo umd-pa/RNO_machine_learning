@@ -77,7 +77,7 @@ def digitize(values, bits=14, v_min=-.5, v_max=.5):
     """Simulate digitization to N bits with given voltage range."""
     values = np.clip(values,v_min,v_max) # Clip
     # Quantize to integer levels
-    levels = 2**bits - 1  # e.g., 4095 for 12-bit
+    levels = 2**bits - 1  # e.g., 16383 for 14-bit
     # Scale to [0, levels]
     scaled = (values - v_min) / (v_max - v_min) * levels
     # Round to nearest integer
