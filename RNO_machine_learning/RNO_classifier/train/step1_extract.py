@@ -75,10 +75,11 @@ def _snr(noised: np.ndarray, noiseless: np.ndarray | None) -> np.ndarray:
 
 def digitize(values, bits=14, v_min=-.5, v_max=.5):
     """Simulate digitization to N bits with given voltage range."""
+    values = np.clip(values,v_min,v_max) # Clip
     # Quantize to integer levels
     levels = 2**bits - 1  # e.g., 4095 for 12-bit
     # Scale to [0, levels]
-    scaled = (np.asarray(values) - v_min) / (v_max - v_min) * levels
+    scaled = (values - v_min) / (v_max - v_min) * levels
     # Round to nearest integer
     digitized = np.round(scaled).astype(int)
     # Convert back to voltage
