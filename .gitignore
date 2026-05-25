@@ -25,3 +25,6 @@ RNO_machine_learning/utils_dir/build_v_dset_splits.py
 */model_evals/*
 */manifests/
 *.txt
+*.png
+*.pt
+*.csv

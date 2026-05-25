@@ -11,6 +11,8 @@ Usage:
         [--epochs 50]           \
         [--batch-size 256]      \
         [--lr 1e-3]             \
+        [--dropout 0.2]         \
+        [--weight-decay 1e-4]   \
         [--val-frac 0.15]       \
         [--seed 42]
 
@@ -90,7 +92,7 @@ class WaveformDataset(Dataset):
         self._open()
         idx = int(self.indices[i])
         wav = self._f["waveforms"][idx]   # (4, T) float32
-        lbl = float(self._f["labels"][idx])
+        lbl = float(self._f["labels"][idx]) # check that its float32
 
         # Centre-crop
         if self.crop_samples is not None:
@@ -203,11 +205,81 @@ class FpgaCNN(nn.Module):
     def forward(self, x):
         return self.head(self.encoder(x)).squeeze(1)   # (B,)
 
+class ResBlock1d(nn.Module):
+    def __init__(self, channels: int, kernel_size: int, padding: int, stride: int = 1):
+        super().__init__()
+        self.conv1 = nn.Conv1d(channels, channels, kernel_size=kernel_size,
+                               padding=padding, stride=stride, bias=False)
+        self.bn1   = nn.BatchNorm1d(channels, momentum=0.01)
+        self.conv2 = nn.Conv1d(channels, channels, kernel_size=kernel_size,
+                               padding=padding, bias=False)
+        self.bn2   = nn.BatchNorm1d(channels, momentum=0.01)
+        self.act   = nn.ReLU()
+
+        self.downsample = None
+        if stride != 1:
+            self.downsample = nn.Sequential(
+                nn.Conv1d(channels, channels, kernel_size=1, stride=stride, bias=False),
+                nn.BatchNorm1d(channels, momentum=0.01)
+            )
+
+    def forward(self, x):
+        identity = x
+        out = self.act(self.bn1(self.conv1(x)))
+        out = self.bn2(self.conv2(out))
+        if self.downsample is not None:
+            identity = self.downsample(x)
+        return self.act(out + identity)
+    
+
+class RNO_resnet(nn.Module):
+    """
+    1D ResNet for signal/noise classification.
+    Input:  (batch, 4, 1024)  ← Same as FpgaCNN!
+    Output: (batch, 1)        ← Binary classification
+    """
+
+    def __init__(self,
+                 n_channels: int = 4,
+                 hidden_units: int = 32,
+                 output_shape: int = 1,
+                 dropout: float = 0.1):
+
+        super().__init__()
+
+        self.temporal_resnet = nn.Sequential(
+            nn.BatchNorm1d(n_channels, momentum=0.01),
+            
+            # Channel lifting
+            nn.Conv1d(n_channels, hidden_units, kernel_size=7, padding=3, bias=False),
+            nn.BatchNorm1d(hidden_units, momentum=0.01),
+            nn.ReLU(),
+            
+            ResBlock1d(hidden_units, kernel_size=5, padding=2, stride=4),   # 1024 → 256
+            ResBlock1d(hidden_units, kernel_size=5, padding=2, stride=4),   # 256 → 64
+            
+            nn.Dropout(dropout),
+        )
+
+        self.head = nn.Sequential(
+            nn.AdaptiveAvgPool1d(1),
+            nn.Flatten(),
+            nn.Linear(hidden_units, 16),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(16, output_shape),
+        )
+
+    def forward(self, x):
+        x = self.temporal_resnet(x)  # (B, hidden_units, 64)
+        x = self.head(x)               # (B, 1)
+        return x.squeeze(1)            # (B,)
 
 ARCH_REGISTRY = {
     "baseline": BaselineCNN,
     "tiny":     TinyCNN,
     "fpga":     FpgaCNN,
+    "resnet":  RNO_resnet,
 }
 
 
@@ -283,6 +355,9 @@ def parse_args():
     p.add_argument("--workers",      type=int,   default=None,
                    help="DataLoader worker processes (default: min(8, cpu_count))")
     p.add_argument("--seed",         type=int,   default=42)
+    p.add_argument("--dropout",      type=float, default=0.2,
+                   help="Dropout rate (default: 0.2)")
+    p.add_argument("--weight-decay", type=float, default=1e-4)
     return p.parse_args()
 
 
@@ -343,7 +418,7 @@ def main():
                               shuffle=False, **loader_kw)
 
     # ── model ─────────────────────────────────────────────────────────────────
-    model = ARCH_REGISTRY[args.arch](n_channels=4).to(device)
+    model = ARCH_REGISTRY[args.arch](n_channels=4, dropout=args.dropout).to(device)
     n_p   = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print(f"Architecture: {args.arch}  |  Parameters: {n_p:,}")
 
@@ -351,7 +426,7 @@ def main():
     pos_weight = torch.tensor([n_noise / max(n_sig, 1)], dtype=torch.float32).to(device)
     criterion  = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
 
-    optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=1e-4)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
         optimizer, T_max=args.epochs, eta_min=args.lr * 0.01)
 
