@@ -119,7 +119,8 @@ def iter_events(nur_path: str, label: int):
         noised_undigitized=noised_undigitized*1500 # Amplifying by 1500x
         if noiseless_undigitized is not None: # Only amplify noiseless dataset if it has content
             noiseless_undigitized=noiseless_undigitized*1500
-
+       else:
+            raise ValueError("No simulated station found! Cannot obtain raw signal.")
         noised = digitize(noised_undigitized, bits=6, v_min=-.5, v_max=.5) # Quantized and clamped noise between -.5 and .5 volts
         if noiseless_undigitized is not None: # Only quantize noiseless dataset if it has content
             noiseless = digitize(noiseless_undigitized, bits=6, v_min=-.5, v_max=.5)
