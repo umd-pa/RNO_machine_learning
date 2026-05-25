@@ -6,6 +6,11 @@ Run once for signal, once for noise. If you want typical amplification (x1500) u
     python extract.py --input signal1.nur signal2.nur --label 1 --hw-resp SCALE --out signal.h5
     python extract.py --input noise1.nur noise2.nur   --label 0 --hw-resp SCALE --out noise.h5
 
+--hw-resp options are:
+    APPLY: Apply full hardware response simulation (not functional with custom detectors, but will work with RNO-G single station!)
+    SCALE: Simply amplify signal by 1500
+    NONE: Do not apply any gain/hardware amp. It is assumed it was already applied during simulation
+
 Output HDF5 layout:
     /waveforms   float32  (N, 4, T)  — raw voltage traces, channels 0–3
     /labels      int8     (N,)       — 1=signal, 0=noise
