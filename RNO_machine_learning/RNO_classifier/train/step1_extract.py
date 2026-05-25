@@ -27,9 +27,12 @@ from pathlib import Path
 import h5py
 import numpy as np
 from tqdm import tqdm
+from enum import Enum, auto
 
 try:
     import NuRadioReco.modules.io.eventReader as _ev_reader_mod
+    from NuRadioReco.modules.RNO_G import hardwareResponseIncorporator
+    from NuRadioReco.detector.RNO_G import rnog_detector
 except ImportError:
     sys.exit(
         "ERROR: NuRadioReco not found.\n"
@@ -70,7 +73,7 @@ def _snr(noised: np.ndarray, noiseless: np.ndarray | None) -> np.ndarray:
             snr[i]    = v_p2p / (2 * noise_rms) if noise_rms > 0 else 0.0
     return snr
 
-def digitize(values, bits=14, v_min=-1, v_max=1):
+def digitize(values, bits=14, v_min=-.5, v_max=.5):
     """Simulate digitization to N bits with given voltage range."""
     # Quantize to integer levels
     levels = 2**bits - 1  # e.g., 4095 for 12-bit
@@ -81,11 +84,45 @@ def digitize(values, bits=14, v_min=-1, v_max=1):
     # Convert back to voltage
     return digitized / levels * (v_max - v_min) + v_min
 
+# ── det finder ────────────────────────────────────────────────────────────
+
+def _path_to_det():
+    """Quick helper function to find the detector file assuming the detector is inside RNO_classifier/generate/station.json
+
+    Returns:
+        Path: Path to detector
+    """
+    script_path = Path(__file__).resolve()
+    det_path = script_path.parent.parent / 'generate' / 'station.json'
+    return str(det_path)
+
+
 # ── event iterator ────────────────────────────────────────────────────────────
 
-def iter_events(nur_path: str, label: int):
+class HardwareResponse(Enum):
+    APPLY = auto()  # run hardware response + detector
+    SCALE = auto()  # multiply by 1500 (no detector)
+    NONE  = auto()  # pass through raw traces
+
+    def scale_factor(self) -> float:
+        return 1500.0 if self is HardwareResponse.SCALE else 1.0
+
+    def needs_detector(self) -> bool:
+        return self is HardwareResponse.APPLY
+
+
+def iter_events(nur_path: str, label: int, hw_resp: HardwareResponse):
     reader = _ev_reader_mod.eventReader()
     reader.begin(nur_path)
+
+    hardware_response = None
+    det_RNOG = None
+
+    if hw_resp.needs_detector():
+        print('Adding hardware response...')
+        hardware_response = hardwareResponseIncorporator.hardwareResponseIncorporator()
+        hardware_response.begin()
+        det_RNOG = rnog_detector.Detector(detector_file=_path_to_det())
 
     for event in reader.run():
         stations = list(event.get_stations())
@@ -93,28 +130,36 @@ def iter_events(nur_path: str, label: int):
             continue
         station = stations[0]
 
-        ch_data = {ch.get_id(): ch.get_trace().astype(np.float32)
-                   for ch in station.iter_channels()
-                   if ch.get_id() in NOISED_CHANNELS}
+        if hw_resp.needs_detector() and hardware_response is not None:
+            hardware_response.run(event, station, det_RNOG, sim_to_data=True)
+
+        scale = hw_resp.scale_factor()
+
+        ch_data = {
+            ch.get_id(): ch.get_trace().astype(np.float32) * scale
+            for ch in station.iter_channels()
+            if ch.get_id() in NOISED_CHANNELS
+        }
         if len(ch_data) < 4:
             warnings.warn(f"Skipping event: only found channels {list(ch_data.keys())}")
             continue
+
         noised_undigitized = np.stack([ch_data[c] for c in NOISED_CHANNELS])
 
         noiseless_undigitized = None
         if station.has_sim_station():
             sim = station.get_sim_station()
-            sim_data = {sc.get_id(): sc.get_trace().astype(np.float32)
-                        for sc in sim.iter_channels()
-                        if sc.get_id() in SIM_CHANNELS}
+            sim_data = {
+                sc.get_id(): sc.get_trace().astype(np.float32) * scale
+                for sc in sim.iter_channels()
+                if sc.get_id() in SIM_CHANNELS
+            }
             if len(sim_data) == 4:
                 noiseless_undigitized = np.stack([sim_data[c] for c in SIM_CHANNELS])
 
-        snr = _snr(noised_undigitized, noiseless_undigitized)
-        
-        noised = digitize(noised_undigitized, bits=14, v_min=-1, v_max=1) # Quantized and clamped noise between -1 and 1 volts
-        noiseless = digitize(noiseless_undigitized, bits=14, v_min=-1, v_max=1)
-        
+        snr    = _snr(noised_undigitized, noiseless_undigitized)
+        noised = digitize(noised_undigitized)
+
         energy = vertex = weight = None
         if label == 1:
             primary = event.get_primary()
@@ -132,10 +177,9 @@ def iter_events(nur_path: str, label: int):
             "label":    np.int8(label),
         }
 
-
 # ── pre-scan ──────────────────────────────────────────────────────────────────
 
-def count_valid_events(nur_paths: list[str]) -> tuple[int, int]:
+def count_valid_events(nur_paths: list[str]) -> tuple[int, int | None]:
     """Return (total_n_valid, T) across all files."""
     total, T = 0, None
     for path in nur_paths:
@@ -157,10 +201,9 @@ def count_valid_events(nur_paths: list[str]) -> tuple[int, int]:
                 total += 1
     return total, T
 
-
 # ── writer ────────────────────────────────────────────────────────────────────
 
-def write_hdf5(nur_paths: list[str], label: int, out_path: str):
+def write_hdf5(nur_paths: list[str], label: int, out_path: str, hw_resp: HardwareResponse = HardwareResponse.NONE):
     n, T = count_valid_events(nur_paths)
     if n == 0:
         sys.exit("ERROR: no valid events found.")
@@ -181,7 +224,7 @@ def write_hdf5(nur_paths: list[str], label: int, out_path: str):
 
         i = 0
         for path in nur_paths:
-            for ev in tqdm(iter_events(path, label), desc=Path(path).name):
+            for ev in tqdm(iter_events(path, label, hw_resp = hw_resp), desc=Path(path).name):
                 ds_wav[i] = ev["waveform"]
                 ds_lbl[i] = ev["label"]
                 ds_snr[i] = ev["snr"]
@@ -201,6 +244,7 @@ def main():
     p.add_argument("--input", required=True, nargs="+", help=".nur file(s) to extract")
     p.add_argument("--label", required=True, type=int, choices=[0, 1],
                    help="1 = signal, 0 = noise")
+    p.add_argument("--hw-resp", choices=[m.name for m in HardwareResponse], default="NONE", help="Hardware response mode (default: NONE)")
     p.add_argument("--out",   required=True, help="Output HDF5 path")
     args = p.parse_args()
 
@@ -208,7 +252,8 @@ def main():
     if missing:
         sys.exit(f"ERROR: file(s) not found: {', '.join(missing)}")
 
-    write_hdf5(args.input, args.label, args.out)
+    hw_resp = HardwareResponse[args.hw_resp]
+    write_hdf5(args.input, args.label, args.out, hw_resp=hw_resp)
 
 
 if __name__ == "__main__":
