@@ -104,10 +104,10 @@ class WaveformDataset(Dataset):
                 pad = np.zeros((4, self.crop_samples - T), dtype=np.float32)
                 wav = np.concatenate([wav, pad], axis=1)
 
-        # Per-sample peak normalisation
-        peak = np.max(np.abs(wav))
-        if peak > 0:
-            wav = wav / peak
+        # Per-sample peak normalisation (DO NOT THINK WE NEED TO NORMALIZE FOR THIS DATASET!)
+        # peak = np.max(np.abs(wav))
+        # if peak > 0:
+        #     wav = wav / peak
 
         return torch.from_numpy(wav), torch.tensor(lbl, dtype=torch.float32)
 
@@ -230,7 +230,58 @@ class ResBlock1d(nn.Module):
         if self.downsample is not None:
             identity = self.downsample(x)
         return self.act(out + identity)
-    
+
+class ResBlock1d_plus(nn.Module):
+    def __init__(self, channels_in: int, channels_out: int, kernel_size: int, padding: int, stride: int = 1):
+        super().__init__()
+        self.conv1 = nn.Conv1d(channels_in, channels_out, kernel_size=kernel_size,
+                               padding=padding, stride=stride, bias=False)
+        self.conv2 = nn.Conv1d(channels_out, channels_out, kernel_size=kernel_size,
+                               padding=padding, bias=False)
+        self.act   = nn.ReLU()
+
+        self.downsample = None
+        if stride != 1 or channels_out != channels_in:
+            self.downsample = nn.Sequential(
+                nn.Conv1d(channels_in, channels_out, kernel_size=1, stride=stride, bias=False),
+            )
+
+    def forward(self, x):
+        identity = x
+        out = self.conv2(self.act(self.conv1(x)))
+        if self.downsample is not None:
+            identity = self.downsample(x)
+        return self.act(out + identity)
+
+class ResBlock1d_bottleneck(nn.Module):
+    def __init__(self, channels_in: int, channels_out: int, kernel_size: int, 
+                 padding: int, stride: int = 1):
+        super().__init__()
+        
+        # Bottleneck width is channels_in (stay narrow for the spatial conv)
+        bottleneck = channels_in
+
+        self.conv1 = nn.Conv1d(channels_in,  bottleneck,    kernel_size=1, bias=False)  # pointwise squeeze
+        self.conv2 = nn.Conv1d(bottleneck,   bottleneck,    kernel_size=kernel_size,    # spatial (cheap, narrow)
+                               padding=padding, stride=stride, bias=False)
+        self.conv3 = nn.Conv1d(bottleneck,   channels_out,  kernel_size=1, bias=False)  # pointwise expand
+        self.act   = nn.ReLU()
+
+        self.downsample = None
+        if stride != 1 or channels_in != channels_out:
+            self.downsample = nn.Conv1d(channels_in, channels_out, kernel_size=1, 
+                                        stride=stride, bias=False)
+
+    def forward(self, x):
+        identity = x
+        out = self.conv1(x)
+        out = self.act(out)
+        out = self.conv2(out)
+        out = self.act(out)
+        out = self.conv3(out)
+        if self.downsample is not None:
+            identity = self.downsample(x)
+        return self.act(out + identity)
 
 class RNO_resnet(nn.Module):
     """
@@ -275,11 +326,51 @@ class RNO_resnet(nn.Module):
         x = self.head(x)               # (B, 1)
         return x.squeeze(1)            # (B,)
 
+class RNO_resnet_plus(nn.Module):
+    """
+    Improved resnet architecture inspired by "Detection of Radar Pulse Signals Based on Deep Learning" by Fengyang Gu, et al.
+    Input:  (batch, 4, 1024)  ← Same as FpgaCNN!
+    Output: (batch, 1)        ← Binary classification
+    Params: 10,657
+    Size: 829.00 MBs
+    """
+    def __init__(self,
+                 n_channels: int = 4,
+                 hidden_units: int = 32,
+                 output_shape: int = 1,
+                 dropout: float = 0.1):
+
+        super().__init__()
+
+        self.pre_process = nn.Sequential(
+            nn.Conv1d(n_channels, hidden_units, kernel_size = 5, stride = 2, padding = 2),
+            nn.MaxPool1d(kernel_size = 2)
+        )
+
+        self.res_block1 = ResBlock1d_plus(hidden_units, hidden_units, kernel_size = 3, padding = 1)
+        self.res_block2 = ResBlock1d_plus(hidden_units, hidden_units // 2, kernel_size = 3, padding = 1)
+        avg_pool_out = 64
+        self.avg_pool = nn.AdaptiveAvgPool1d(avg_pool_out)
+        self.flatten = nn.Flatten()
+        self.linear_layer = nn.Linear(in_features = (hidden_units // 2) * avg_pool_out, out_features = output_shape)
+        self.softmax = nn.Sigmoid()
+
+    def forward(self, x):
+        x = self.pre_process(x)
+        x = self.res_block1(x)
+        x = self.res_block2(x)
+        x = self.avg_pool(x)
+        x = self.flatten(x)
+        x = self.linear_layer(x)
+        x = self.softmax(x)
+        return x.squeeze(1)  
+
 ARCH_REGISTRY = {
     "baseline": BaselineCNN,
     "tiny":     TinyCNN,
     "fpga":     FpgaCNN,
     "resnet":  RNO_resnet,
+    "resnet+": RNO_resnet_plus
 }
 
 
