@@ -70,7 +70,7 @@ def _snr(noised: np.ndarray, noiseless: np.ndarray | None) -> np.ndarray:
             snr[i]    = v_p2p / (2 * noise_rms) if noise_rms > 0 else 0.0
     return snr
 
-def digitize(values, bits=6, v_min=-.5, v_max=.5):
+def digitize(values, bits=14, v_min=-.5, v_max=.5):
     """Simulate digitization to N bits with given voltage range."""
     # Turn values into Numpy array
     values = np.asarray(values)
