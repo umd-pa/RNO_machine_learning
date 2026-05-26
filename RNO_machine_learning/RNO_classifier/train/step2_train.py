@@ -419,7 +419,7 @@ class RNO_resnet_plusplus(nn.Module):
         self.avg_pool = nn.AdaptiveAvgPool1d(avg_pool_out)
         self.flatten = nn.Flatten()
         self.linear_layer1 = nn.Linear(in_features = (hidden_units // 2) * avg_pool_out, out_features = (hidden_units // 2) * avg_pool_out)
-        self.relu = nn.Relu()
+        self.relu = nn.ReLU()
         self.dropout = nn.Dropout(dropout)
         self.linear_layer2 = nn.Linear(in_features = (hidden_units // 2) * avg_pool_out, out_features = output_shape)
 
