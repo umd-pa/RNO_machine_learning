@@ -612,8 +612,9 @@ def main():
     # ── logging ───────────────────────────────────────────────────────────────
     csv_path = out_dir / "metrics.csv"
     png_path = out_dir / "loss_curve.png"
-    with open(csv_path, "w") as f:
-        f.write("epoch,train_loss,train_acc,val_loss,val_acc,lr,elapsed_s\n")
+    if args.resume is None:
+        with open(csv_path, "w") as f:
+            f.write("epoch,train_loss,train_acc,val_loss,val_acc,lr,elapsed_s\n")
 
     t0 = time.time()
 
