@@ -52,9 +52,11 @@ from pathlib import Path
 
 import h5py
 import numpy as np
+from sympy import false
 import torch
 import torch.nn as nn
-from torch.utils.data import ConcatDataset, DataLoader, Dataset
+from torch.utils.data import ConcatDataset, DataLoader, Dataset, Subset
+
 
 try:
     import matplotlib
@@ -353,7 +355,6 @@ class RNO_resnet_plus(nn.Module):
         self.avg_pool = nn.AdaptiveAvgPool1d(avg_pool_out)
         self.flatten = nn.Flatten()
         self.linear_layer = nn.Linear(in_features = (hidden_units // 2) * avg_pool_out, out_features = output_shape)
-        self.softmax = nn.Sigmoid()
 
     def forward(self, x):
         x = self.pre_process(x)
@@ -362,7 +363,6 @@ class RNO_resnet_plus(nn.Module):
         x = self.avg_pool(x)
         x = self.flatten(x)
         x = self.linear_layer(x)
-        x = self.softmax(x)
         return x.squeeze(1)  
 
 class ResBlock1d_plusplus(nn.Module):
@@ -418,10 +418,9 @@ class RNO_resnet_plusplus(nn.Module):
         avg_pool_out = 64
         self.avg_pool = nn.AdaptiveAvgPool1d(avg_pool_out)
         self.flatten = nn.Flatten()
-        self.linear_layer1 = nn.Linear(in_features = (hidden_units // 2) * avg_pool_out, out_features = (hidden_units // 2) * avg_pool_out)
+        self.linear_layer = nn.Linear(in_features = (hidden_units // 2) * avg_pool_out, out_features = output_shape)
         self.relu = nn.ReLU()
         self.dropout = nn.Dropout(dropout)
-        self.linear_layer2 = nn.Linear(in_features = (hidden_units // 2) * avg_pool_out, out_features = output_shape)
 
     def forward(self, x):
         x = self.pre_process(x)
@@ -429,10 +428,10 @@ class RNO_resnet_plusplus(nn.Module):
         x = self.res_block2(x)
         x = self.avg_pool(x)
         x = self.flatten(x)
-        x = self.linear_layer1(x)
+        x = self.linear_layer(x)
         x = self.relu(x)
-        x = self.dropout(x)
-        x = self.linear_layer2(x)
+        x = self.dropout(x) # Remove relu and dropout from here since model needs raw logits. Dropout and relu should go between hidden layers
+       # x = self.linear_layer2(x)
         return x.squeeze(1)  
 
 ARCH_REGISTRY = {
@@ -520,6 +519,8 @@ def parse_args():
     p.add_argument("--dropout",      type=float, default=0.2,
                    help="Dropout rate (default: 0.2)")
     p.add_argument("--weight-decay", type=float, default=1e-4)
+    p.add_argument("--resume", type=str, default=None,
+               help="Path to checkpoint to resume from")
     return p.parse_args()
 
 
@@ -591,6 +592,22 @@ def main():
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
         optimizer, T_max=args.epochs, eta_min=args.lr * 0.01)
+    
+    start_epoch = 1
+
+    if args.resume is not None:
+        print(f"Loading checkpoint: {args.resume}")
+        ckpt = torch.load(args.resume, map_location=device, weights_only=False)
+
+        # load weights
+        model.load_state_dict(ckpt["model_state"])
+
+        start_epoch = ckpt["epoch"] + 1
+        best_val_loss = ckpt["val_loss"]
+
+        print(f"Resuming from epoch {start_epoch}")
+    else:
+        best_val_loss = float("inf")
 
     # ── logging ───────────────────────────────────────────────────────────────
     csv_path = out_dir / "metrics.csv"
@@ -598,10 +615,9 @@ def main():
     with open(csv_path, "w") as f:
         f.write("epoch,train_loss,train_acc,val_loss,val_acc,lr,elapsed_s\n")
 
-    best_val_loss = float("inf")
     t0 = time.time()
 
-    for epoch in range(1, args.epochs + 1):
+    for epoch in range(start_epoch, args.epochs + 1):
         t_ep = time.time()
         tr_loss, tr_acc = run_epoch(model, train_loader, optimizer, criterion,
                                     device, train=True)
