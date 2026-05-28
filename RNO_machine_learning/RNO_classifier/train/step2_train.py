@@ -52,9 +52,11 @@ from pathlib import Path
 
 import h5py
 import numpy as np
+from sympy import false
 import torch
 import torch.nn as nn
-from torch.utils.data import ConcatDataset, DataLoader, Dataset
+from torch.utils.data import ConcatDataset, DataLoader, Dataset, Subset
+
 
 try:
     import matplotlib
@@ -353,7 +355,6 @@ class RNO_resnet_plus(nn.Module):
         self.avg_pool = nn.AdaptiveAvgPool1d(avg_pool_out)
         self.flatten = nn.Flatten()
         self.linear_layer = nn.Linear(in_features = (hidden_units // 2) * avg_pool_out, out_features = output_shape)
-        self.softmax = nn.Sigmoid()
 
     def forward(self, x):
         x = self.pre_process(x)
@@ -362,7 +363,75 @@ class RNO_resnet_plus(nn.Module):
         x = self.avg_pool(x)
         x = self.flatten(x)
         x = self.linear_layer(x)
-        x = self.softmax(x)
+        return x.squeeze(1)  
+
+class ResBlock1d_plusplus(nn.Module):
+    def __init__(self, channels_in: int, channels_out: int, kernel_size: int, padding: int, stride: int = 1):
+        super().__init__()
+        self.conv1 = nn.Conv1d(channels_in, channels_out, kernel_size=kernel_size,
+                               padding=padding, stride=stride, bias=False)
+        self.bn1 = nn.BatchNorm1d(channels_out, momentum=.01)
+        self.conv2 = nn.Conv1d(channels_out, channels_out, kernel_size=kernel_size,
+                               padding=padding, bias=False)
+        self.bn2 = nn.BatchNorm1d(channels_out, momentum=.01)
+        self.act   = nn.ReLU()
+
+        self.downsample = None
+        if stride != 1 or channels_out != channels_in:
+            self.downsample = nn.Sequential(
+                nn.Conv1d(channels_in, channels_out, kernel_size=1, stride=stride, bias=False),
+                nn.BatchNorm1d(channels_out, momentum=.01)
+            )
+
+    def forward(self, x):
+        identity = x
+        out = self.bn2(self.conv2(self.act(self.bn1(self.conv1(x)))))
+        if self.downsample is not None:
+            identity = self.downsample(x)
+        return self.act(out + identity)
+
+
+class RNO_resnet_plusplus(nn.Module):
+    """
+    Improved resnet+ architecture with batchnorm and dropout layer
+    Input:  (batch, 4, 1024)  ← Same as FpgaCNN!
+    Output: (batch, 1)        ← Binary classification
+    Params: 10,657
+    Size: 829.00 MBs
+    """
+    def __init__(self,
+                 n_channels: int = 4,
+                 hidden_units: int = 32,
+                 output_shape: int = 1,
+                 dropout: float = 0.1):
+
+        super().__init__()
+
+        self.pre_process = nn.Sequential(
+            nn.BatchNorm1d(n_channels,momentum=.01),
+            nn.Conv1d(n_channels, hidden_units, kernel_size = 5, stride = 2, padding = 2),
+            nn.MaxPool1d(kernel_size = 2)
+        )
+
+        self.res_block1 = ResBlock1d_plusplus(hidden_units, hidden_units, kernel_size = 3, padding = 1)
+        self.res_block2 = ResBlock1d_plusplus(hidden_units, hidden_units // 2, kernel_size = 3, padding = 1)
+        avg_pool_out = 64
+        self.avg_pool = nn.AdaptiveAvgPool1d(avg_pool_out)
+        self.flatten = nn.Flatten()
+        self.linear_layer = nn.Linear(in_features = (hidden_units // 2) * avg_pool_out, out_features = output_shape)
+        self.relu = nn.ReLU()
+        self.dropout = nn.Dropout(dropout)
+
+    def forward(self, x):
+        x = self.pre_process(x)
+        x = self.res_block1(x)
+        x = self.res_block2(x)
+        x = self.avg_pool(x)
+        x = self.flatten(x)
+        x = self.linear_layer(x)
+        x = self.relu(x)
+        x = self.dropout(x) # Remove relu and dropout from here since model needs raw logits. Dropout and relu should go between hidden layers
+       # x = self.linear_layer2(x)
         return x.squeeze(1)  
 
 ARCH_REGISTRY = {
@@ -370,7 +439,8 @@ ARCH_REGISTRY = {
     "tiny":     TinyCNN,
     "fpga":     FpgaCNN,
     "resnet":  RNO_resnet,
-    "resnet+": RNO_resnet_plus
+    "resnet+": RNO_resnet_plus,
+    "resnet++": RNO_resnet_plusplus
 }
 
 
@@ -449,6 +519,8 @@ def parse_args():
     p.add_argument("--dropout",      type=float, default=0.2,
                    help="Dropout rate (default: 0.2)")
     p.add_argument("--weight-decay", type=float, default=1e-4)
+    p.add_argument("--resume", type=str, default=None,
+               help="Path to checkpoint to resume from")
     return p.parse_args()
 
 
@@ -520,17 +592,33 @@ def main():
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
         optimizer, T_max=args.epochs, eta_min=args.lr * 0.01)
+    
+    start_epoch = 1
+
+    if args.resume is not None:
+        print(f"Loading checkpoint: {args.resume}")
+        ckpt = torch.load(args.resume, map_location=device, weights_only=False)
+
+        # load weights
+        model.load_state_dict(ckpt["model_state"])
+
+        start_epoch = ckpt["epoch"] + 1
+        best_val_loss = ckpt["val_loss"]
+
+        print(f"Resuming from epoch {start_epoch}")
+    else:
+        best_val_loss = float("inf")
 
     # ── logging ───────────────────────────────────────────────────────────────
     csv_path = out_dir / "metrics.csv"
     png_path = out_dir / "loss_curve.png"
-    with open(csv_path, "w") as f:
-        f.write("epoch,train_loss,train_acc,val_loss,val_acc,lr,elapsed_s\n")
+    if args.resume is None:
+        with open(csv_path, "w") as f:
+            f.write("epoch,train_loss,train_acc,val_loss,val_acc,lr,elapsed_s\n")
 
-    best_val_loss = float("inf")
     t0 = time.time()
 
-    for epoch in range(1, args.epochs + 1):
+    for epoch in range(start_epoch, args.epochs + 1):
         t_ep = time.time()
         tr_loss, tr_acc = run_epoch(model, train_loader, optimizer, criterion,
                                     device, train=True)
