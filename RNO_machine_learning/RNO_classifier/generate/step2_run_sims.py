@@ -5,6 +5,16 @@ import NuRadioReco.modules.channelBandPassFilter
 from NuRadioReco.utilities import units
 from NuRadioMC.simulation import simulation
 import logging
+import os
+
+def get_abs_path(rel_path):
+    """
+    Converts a relative path to an absolute path based on 
+    the location of THIS script (create_dagman.py).
+    """
+    # This gets the folder where create_dagman.py lives (e.g., .../jobs/)
+    base = os.path.dirname(os.path.abspath(__file__))
+    return os.path.abspath(os.path.join(base, rel_path))
 
 channelBandPassFilter = NuRadioReco.modules.channelBandPassFilter.channelBandPassFilter()
 simpleThreshold = NuRadioReco.modules.trigger.simpleThreshold.triggerSimulator()
@@ -41,7 +51,7 @@ class mySimulation(simulation.simulation):
         # but this will work for now.
         simpleThreshold.run(evt, station, det,
                              threshold=3.5 * self._Vrms,
-                             triggered_channels=40,  
+                             triggered_channels=[40],  
                              number_concidences=1,
                              pre_trigger_time=1000 * units.ns,
                              trigger_name='rnog_proxy_3.5sigma')
@@ -66,11 +76,11 @@ args = parser.parse_args()
 
 if __name__ == "__main__":
     print(args.threshold)
-    sim = mySimulation(inputfilename=args.inputfilename,
-                                outputfilename=args.outputfilename,
-                                detectorfile=args.detectordescription,
-                                outputfilenameNuRadioReco=args.outputfilenameNuRadioReco,
-                                config_file=args.config,
+    sim = mySimulation(inputfilename=get_abs_path(args.inputfilename),
+                                outputfilename=get_abs_path(args.outputfilename),
+                                detectorfile=get_abs_path(args.detectordescription),
+                                outputfilenameNuRadioReco=get_abs_path(args.outputfilenameNuRadioReco),
+                                config_file=get_abs_path(args.config),
                                 file_overwrite=True,
                                 threshold=args.threshold,
                                 trig_chan=args.trig_chan
