@@ -38,7 +38,7 @@ arguments = "$(SCRIPT_PATH) $(IN_DIR)/nu_f$(FILE_ID).hdf5 $(STATION_JSON) $(CONF
 # HOUSEKEEPING
 # ----------------------------------------------------------------------
 output = logs/nu_f$(FILE_ID).out
-error  = logs/nu_f$(FILE_ID).err
+error  = logs/nu_f$(FILE_ID).out
 log    = logs/nu_f$(FILE_ID).log
 
 # Submit 100 parallel jobs (Process 0 through 99)
