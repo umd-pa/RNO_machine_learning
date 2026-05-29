@@ -29,4 +29,4 @@ RNO_machine_learning/utils_dir/build_v_dset_splits.py
 *.pt
 *.csv
 RNO_machine_learning/RNO_classifier/benchmark_station_classification/generate/submit/condor/logs/*
-*.sub
+RNO_machine_learning/RNO_classifier/RNO_station_classification/generate/submit/condor/logs/*
