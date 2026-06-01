@@ -12,9 +12,9 @@ Run once for signal, once for noise. If you want typical amplification (x1500) u
     NONE: Do not apply any gain/hardware amp. It is assumed it was already applied during simulation
 
 Output HDF5 layout:
-    /waveforms   float32  (N, 4, T)  — raw voltage traces, channels 0–3
+    /waveforms   float32  (N, N_channels, T)  — raw voltage traces, channels 0–3
     /labels      int8     (N,)       — 1=signal, 0=noise
-    /snr         float32  (N, 4)     — per-channel SNR (signal only; else NaN)
+    /snr         float32  (N, N_channels)     — per-channel SNR (signal only; else NaN)
     /energy      float32  (N,)       — neutrino energy in eV (signal only; else NaN)
     /vertex      float32  (N, 3)     — interaction vertex x,y,z in m (signal only)
     /weight      float32  (N,)       — MC event weight (signal only; else NaN)
@@ -47,19 +47,19 @@ from NuRadioReco.framework.parameters import channelParameters as cp
 from NuRadioReco.framework.parameters import particleParameters as pp
 from NuRadioReco.framework.parameters import stationParameters as sp
 
-NOISED_CHANNELS = [0, 1, 2, 3]
-SIM_CHANNELS    = [40, 41, 42, 43]
+NOISED_CHANNELS = np.arange(24)
+SIM_CHANNELS    = [100]
 
 
 # ── helpers ───────────────────────────────────────────────────────────────
 
 def _snr(noised: np.ndarray, noiseless: np.ndarray | None) -> np.ndarray:
-    """Per-channel SNR = V_p2p / (2 * noise_rms), shape (4,).
+    """Per-channel SNR = V_p2p / (2 * noise_rms), shape (N_channels,).
     Noise RMS estimated from samples outside a T/2 window centred on the signal peak,
     with wraparound so the window is always exactly T/2 samples.
     """
-    snr = np.zeros(4, dtype=np.float32)
-    for i in range(4):
+    snr = np.zeros(len(NOISED_CHANNELS), dtype=np.float32)
+    for i in range(len(NOISED_CHANNELS)):
         if noiseless is not None:
             v_p2p    = np.max(noiseless[i]) - np.min(noiseless[i])
             T        = len(noised[i])
@@ -146,7 +146,7 @@ def iter_events(nur_path: str, label: int, hw_resp: HardwareResponse):
             for ch in station.iter_channels()
             if ch.get_id() in NOISED_CHANNELS
         }
-        if len(ch_data) < 4:
+        if len(ch_data) < len(NOISED_CHANNELS):
             warnings.warn(f"Skipping event: only found channels {list(ch_data.keys())}")
             continue
 
@@ -158,10 +158,10 @@ def iter_events(nur_path: str, label: int, hw_resp: HardwareResponse):
             sim_data = {
                 sc.get_id(): sc.get_trace().astype(np.float32) * scale
                 for sc in sim.iter_channels()
-                if sc.get_id() in SIM_CHANNELS
+                if sc.get_id() in NOISED_CHANNELS
             }
-            if len(sim_data) == 4:
-                noiseless_undigitized = np.stack([sim_data[c] for c in SIM_CHANNELS])
+            if len(sim_data) == len(NOISED_CHANNELS):
+                noiseless_undigitized = np.stack([sim_data[c] for c in NOISED_CHANNELS])
 
         snr    = _snr(noised_undigitized, noiseless_undigitized)
         noised = digitize(noised_undigitized)
@@ -216,10 +216,10 @@ def write_hdf5(nur_paths: list[str], label: int, out_path: str, hw_resp: Hardwar
     print(f"Total events: {n}   Trace length: {T} samples")
 
     with h5py.File(out_path, "w") as f:
-        ds_wav = f.create_dataset("waveforms", shape=(n, 4, T), dtype=np.float32,
-                                  chunks=(min(256, n), 4, T))
+        ds_wav = f.create_dataset("waveforms", shape=(n, len(NOISED_CHANNELS), T), dtype=np.float32,
+                                  chunks=(min(256, n), len(NOISED_CHANNELS), T))
         ds_lbl = f.create_dataset("labels",  shape=(n,),   dtype=np.int8)
-        ds_snr = f.create_dataset("snr",     shape=(n, 4), dtype=np.float32)
+        ds_snr = f.create_dataset("snr",     shape=(n, len(NOISED_CHANNELS)), dtype=np.float32)
         ds_nrg = f.create_dataset("energy",  shape=(n,),   dtype=np.float32)
         ds_vtx = f.create_dataset("vertex",  shape=(n, 3), dtype=np.float32)
         ds_wgt = f.create_dataset("weight",  shape=(n,),   dtype=np.float32)

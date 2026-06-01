@@ -54,7 +54,7 @@ class mySimulation(simulation.simulation):
         # but this will work for now.
         simpleThreshold.run(evt, station, det,
                              threshold=3.5 * self._Vrms,
-                             triggered_channels=[args.trig_chan],  
+                             triggered_channels=[100],
                              number_concidences=1,
                              pre_trigger_time=1000 * units.ns,
                              trigger_name='rnog_proxy_3.5sigma')
