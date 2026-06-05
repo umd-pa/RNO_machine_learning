@@ -9,7 +9,7 @@ Run once for signal, once for noise. If you want typical amplification (x1500) u
 --hw-resp options are:
     APPLY: Apply full hardware response simulation (not functional with custom detectors, but will work with RNO-G single station!)
     SCALE: Simply amplify signal by 1500
-    NONE: Do not apply any gain/hardware amp. It is assumed it was already applied during simulation
+    NONE: (DEFAULT) Do not apply any gain/hardware amp. It is assumed it was already applied during simulation
 
 Output HDF5 layout:
     /waveforms   float32  (N, N_channels, T)  — raw voltage traces, channels 0–3
@@ -43,23 +43,23 @@ except ImportError:
         "ERROR: NuRadioReco not found.\n"
         "  Activate the correct environment or: pip install NuRadioReco"
     )
-from NuRadioReco.framework.parameters import channelParameters as cp
 from NuRadioReco.framework.parameters import particleParameters as pp
-from NuRadioReco.framework.parameters import stationParameters as sp
 
-NOISED_CHANNELS = np.arange(24)
-SIM_CHANNELS    = [100]
+NOISED_CHANNELS = np.arange(24) # Only using first 4 channels (deepest channels)
+NOISELESS_CHANNELS = [100]
 
 
 # ── helpers ───────────────────────────────────────────────────────────────
 
 def _snr(noised: np.ndarray, noiseless: np.ndarray | None) -> np.ndarray:
-    """Per-channel SNR = V_p2p / (2 * noise_rms), shape (N_channels,).
+    """Per-channel SNR = V_p2p / (2 * noise_rms), shape (N_noiseless channels,).
     Noise RMS estimated from samples outside a T/2 window centred on the signal peak,
     with wraparound so the window is always exactly T/2 samples.
+    Only calculated for channels with a noiseless channel associated
     """
-    snr = np.zeros(len(NOISED_CHANNELS), dtype=np.float32)
-    for i in range(len(NOISED_CHANNELS)):
+    noised=np.array([noised])
+    snr = np.zeros(len(noised), dtype=np.float32)
+    for i in range(len(noised)):
         if noiseless is not None:
             v_p2p    = np.max(noiseless[i]) - np.min(noiseless[i])
             T        = len(noised[i])
@@ -99,7 +99,7 @@ def _path_to_det():
         Path: Path to detector
     """
     script_path = Path(__file__).resolve()
-    det_path = script_path.parent.parent / 'generate' / 'station.json'
+    det_path = script_path.parent.parent / 'generate' / 'RNO_single_station.json'
     return str(det_path)
 
 
@@ -153,17 +153,16 @@ def iter_events(nur_path: str, label: int, hw_resp: HardwareResponse):
         noised_undigitized = np.stack([ch_data[c] for c in NOISED_CHANNELS])
 
         noiseless_undigitized = None
-        if station.has_sim_station():
-            sim = station.get_sim_station()
-            sim_data = {
-                sc.get_id(): sc.get_trace().astype(np.float32) * scale
-                for sc in sim.iter_channels()
-                if sc.get_id() in NOISED_CHANNELS
+        if label == 1:
+            noiseless_data = {
+                c.get_id(): c.get_trace().astype(np.float32) * scale
+                for c in station.iter_channels()
+                if c.get_id() in NOISELESS_CHANNELS
             }
-            if len(sim_data) == len(NOISED_CHANNELS):
-                noiseless_undigitized = np.stack([sim_data[c] for c in NOISED_CHANNELS])
+            if len(noiseless_data) == len(NOISELESS_CHANNELS):
+                noiseless_undigitized = np.stack([noiseless_data[c] for c in NOISELESS_CHANNELS])
 
-        snr    = _snr(noised_undigitized, noiseless_undigitized)
+        snr    = _snr(noised_undigitized[0], noiseless_undigitized)
         noised = digitize(noised_undigitized)
 
         energy = vertex = weight = None
