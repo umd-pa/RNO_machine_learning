@@ -2,9 +2,9 @@ from __future__ import absolute_import, division, print_function
 import argparse
 import NuRadioReco.modules.trigger.simpleThreshold
 import NuRadioReco.modules.channelBandPassFilter
+import NuRadioReco.modules.ARA.hardwareResponseIncorporator
 from NuRadioReco.utilities import units
 from NuRadioMC.simulation import simulation
-import logging
 import os
 
 def get_abs_path(rel_path):
@@ -18,6 +18,7 @@ def get_abs_path(rel_path):
 
 channelBandPassFilter = NuRadioReco.modules.channelBandPassFilter.channelBandPassFilter()
 simpleThreshold = NuRadioReco.modules.trigger.simpleThreshold.triggerSimulator()
+hardware_response = NuRadioReco.modules.ARA.hardwareResponseIncorporator.hardwareResponseIncorporator()
 
 class mySimulation(simulation.simulation):
 
@@ -28,10 +29,7 @@ class mySimulation(simulation.simulation):
         print(f"Running with threshold: {self.threshold}, trig chan {self.trig_chan}")
     
     def _detector_simulation_filter_amp(self, evt, station, det):
-        channelBandPassFilter.run(evt, station, det, passband=[80 * units.MHz, 1000 * units.GHz],
-                                  filter_type='butter', order=2)
-        channelBandPassFilter.run(evt, station, det, passband=[0, 500 * units.MHz],
-                                  filter_type='butter', order=10)
+        hardware_response.run(evt, station, det, sim_to_data=True)
 
     def _detector_simulation_trigger(self, evt, station, det):
 
