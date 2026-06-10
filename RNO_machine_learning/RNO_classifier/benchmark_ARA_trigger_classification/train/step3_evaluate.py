@@ -29,6 +29,7 @@ import h5py
 import numpy as np
 import torch
 from torch.utils.data import ConcatDataset, DataLoader
+import pandas as pd
 
 try:
     import matplotlib
@@ -205,6 +206,12 @@ def plot_efficiency_vs_snr(scores, labels, snr_per_event, threshold, path,
     errs   = np.array(errs)
     counts = np.array(counts)
     valid  = counts > 0
+    eff_vs_snr_data = {"SNR bin": np.round(centres[valid],4),
+            "efficiency value": np.round(effs[valid],4),
+            "efficiency error bar": np.round(errs[valid],4),
+            "event counts": counts[valid],
+            }
+    pd.DataFrame(eff_vs_snr_data).to_csv(str(path).replace(".png", ".csv"), index=False)
 
     fig, ax = plt.subplots(figsize=(7, 4))
     ax.errorbar(centres[valid], effs[valid], yerr=errs[valid],
