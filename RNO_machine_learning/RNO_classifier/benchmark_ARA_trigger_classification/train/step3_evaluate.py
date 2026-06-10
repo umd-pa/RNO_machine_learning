@@ -189,7 +189,7 @@ def plot_confusion(y_true, y_pred, path):
 #     print(f"Saved: {path}")
 
 def plot_efficiency_vs_snr(scores, labels, snr_per_event, threshold, path,
-                           n_bins=20, snr_max=6.0):
+                           n_bins=20, snr_max=6.0, save_csv=True):
     if not _HAS_MPL:
         return
     sig_mask   = labels == 1
@@ -222,6 +222,13 @@ def plot_efficiency_vs_snr(scores, labels, snr_per_event, threshold, path,
     errs   = np.array(errs)
     counts = np.array(counts)
     valid  = counts > 0
+
+    if save_csv:
+        csv_path = Path(path).parent / "eff_vs_snr.csv"
+        data = np.vstack([centres[valid], effs[valid], errs[valid]]).T
+        header = "binned_snr,binned_eff,binned_eff_error"
+        np.savetxt(csv_path, data, delimiter=",", header=header, comments="")
+        print(f"Saved: {csv_path}")
 
     # Include Paper Eff vs. SNR graphs
     snr_axis = np.linspace(0, 6, 1000)
