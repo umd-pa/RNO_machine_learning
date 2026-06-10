@@ -29,6 +29,7 @@ import h5py
 import numpy as np
 import torch
 from torch.utils.data import ConcatDataset, DataLoader
+from scipy.special import erf
 
 try:
     import matplotlib
@@ -77,6 +78,22 @@ def threshold_at_fpr(fpr_arr, tpr_arr, thresholds, target_fpr):
 
 
 # ── plots ─────────────────────────────────────────────────────────────────────
+
+def rnog_paper_sigmoid(snr, snr_50, width=0.35):
+    """
+    Models the trigger efficiency turn-on curve using an Error Function (Gaussian CDF).
+    
+    Parameters:
+    -----------
+    snr : array-like
+        The single-antenna SNR array for the x-axis.
+    snr_50 : float
+        The 50% efficiency point reported in the RNO-G paper.
+    width : float
+        Controls the steepness of the turn-on. 0.35 closely mirrors 
+        the visual steepness of the curves in Figure 27.
+    """
+    return 0.5 * (1 + erf((snr - snr_50) / (width * np.sqrt(2))))
 
 def plot_roc(fpr, tpr, roc_auc, op_fpr, op_tpr, target_fpr, path):
     if not _HAS_MPL:
@@ -206,9 +223,19 @@ def plot_efficiency_vs_snr(scores, labels, snr_per_event, threshold, path,
     counts = np.array(counts)
     valid  = counts > 0
 
-    fig, ax = plt.subplots(figsize=(7, 4))
+    # Include Paper Eff vs. SNR graphs
+    snr_axis = np.linspace(0, 6, 1000)
+    eff_phased_1deg        = rnog_paper_sigmoid(snr_axis, snr_50=3.4, width=0.45)
+    eff_phased_4deg        = rnog_paper_sigmoid(snr_axis, snr_50=2.9, width=0.45)
+    fig, ax = plt.subplots(figsize=(10, 4))
+
     ax.errorbar(centres[valid], effs[valid], yerr=errs[valid],
-                fmt="o-", capsize=4, label="Efficiency")
+                fmt="o-", capsize=4, label="Efficiency", color='tab:orange')
+    ax.plot(snr_axis, eff_phased_1deg, color='blue', linestyle='-', 
+            label='Phased (1° off-cone)')
+
+    ax.plot(snr_axis, eff_phased_4deg, color='red', linestyle='-', 
+            label='Phased (4° off-cone)')
     ax.axhline(0.5, ls="--", color="gray", alpha=0.7)
     ax.axvline(snr_max, ls=":", color="gray", alpha=0.5)
     ax.text(snr_max + 0.05, 0.05, "overflow", fontsize=8, color="gray")
@@ -227,7 +254,7 @@ def plot_efficiency_vs_snr(scores, labels, snr_per_event, threshold, path,
 
     lines1, labs1 = ax.get_legend_handles_labels()
     lines2, labs2 = ax2.get_legend_handles_labels()
-    ax.legend(lines1 + lines2, labs1 + labs2, fontsize=9)
+    ax.legend(lines1 + lines2, labs1 + labs2, loc='upper left', fontsize=8)
 
     fig.tight_layout(); fig.savefig(path, dpi=150); plt.close(fig)
     print(f"Saved: {path}")
