@@ -209,7 +209,6 @@ def plot_efficiency_vs_snr(scores, labels, snr_per_event, threshold, path,
     eff_vs_snr_data = {"SNR bin": np.round(centres[valid],4),
             "efficiency value": np.round(effs[valid],4),
             "efficiency error bar": np.round(errs[valid],4),
-            "event counts": counts[valid],
             }
     pd.DataFrame(eff_vs_snr_data).to_csv(str(path).replace(".png", ".csv"), index=False)
 
