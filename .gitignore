@@ -30,4 +30,5 @@ RNO_machine_learning/utils_dir/build_v_dset_splits.py
 *.csv
 *.log
 *.out
-
+*.npz
+runs/
