@@ -1,0 +1,45 @@
+# ----------------------------------------------------------------------
+# sims.sub
+# ----------------------------------------------------------------------
+universe = vanilla
+executable = /data/condor_shared/users/ssued/mlvenv/bin/python
+
+# Mimicking Slurm hardware requirements
+request_cpus = 1
+request_memory = 3G
+request_disk = 3G
+
+# ----------------------------------------------------------------------
+# PATH DEFINITIONS
+# ----------------------------------------------------------------------
+IN_DIR = /data/condor_shared/users/ssued/RNO_machine_learning/RNO_machine_learning/RNO_classifier/RNO_station_classification/generate/submit/condor/sim_data/nu/step0
+OUT_DIR = /data/condor_shared/users/ssued/RNO_machine_learning/RNO_machine_learning/RNO_classifier/RNO_station_classification/generate/submit/condor/sim_data/nu/step2
+
+# UPDATE THESE THREE PATHS TO ACTUAL FILES
+SCRIPT_PATH = /data/condor_shared/users/ssued/RNO_machine_learning/RNO_machine_learning/RNO_classifier/RNO_station_classification/generate/step2_run_sims.py
+STATION_JSON = RNO_single_station.json
+CONFIG_YAML = config_signal.yaml
+
+# ----------------------------------------------------------------------
+# PADDING THE JOB ID
+# ----------------------------------------------------------------------
+# $(Process) automatically counts from 0 to 99 during the queue.
+# $INT(Process,%06d) pads that number with zeros (e.g., 0 -> 000000, 15 -> 000015)
+FILE_ID = $INT(Process,%06d)
+
+# ----------------------------------------------------------------------
+# EXECUTION COMMAND
+# ----------------------------------------------------------------------
+# for nu
+arguments = "$(SCRIPT_PATH) $(IN_DIR)/nu_f$(FILE_ID).hdf5 $(STATION_JSON) $(CONFIG_YAML) $(OUT_DIR)/nu_f$(FILE_ID).hdf5 $(OUT_DIR)/nu_f$(FILE_ID).nur --threshold 0.5 --trig_chan 100" 
+# for noise
+# arguments = "$(SCRIPT_PATH) $(IN_DIR)/nu_f$(FILE_ID).hdf5 $(STATION_JSON) $(CONFIG_YAML) $(OUT_DIR)/nu_f$(FILE_ID).hdf5 $(OUT_DIR)/nu_f$(FILE_ID).nur --threshold 0.01 --trig_chan 0"
+# ----------------------------------------------------------------------
+# HOUSEKEEPING
+# ----------------------------------------------------------------------
+output = logs/nu_f$(FILE_ID).out
+error  = logs/nu_f$(FILE_ID).out
+log    = logs/nu_f$(FILE_ID).log
+
+# Submit 100 parallel jobs (Process 0 through 99)
+queue 100
