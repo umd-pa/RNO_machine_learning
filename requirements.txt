@@ -1,31 +1,25 @@
-# Core ML
+# Machine Learning & Data Science
 torch>=2.8.0
 torchvision>=0.23.0
-torchinfo>=1.8.0
+torchinfo
+torchsummary
+torchviz
+scikit-learn>=1.7.0
 
-# Data
-h5py>=3.14.0
-numpy>=2.2.0
-scipy>=1.15.0
+# Simulation & Physics
+# Installs the latest in-development version directly from GitHub along with dev dependencies
+NuRadioMC[dev] @ git+https://github.com/nu-radio/NuRadioMC.git
 
-# Experiment Tracking
-wandb>=0.22.0
+# Utilities & Tracking
+tqdm
+wandb
 
-# Config & Utils
-PyYAML>=6.0
-tqdm>=4.67.0
-psutil>=7.0.0
+# Jupyter & Notebook Support
+ipykernel
+ipympl
+nbformat
 
-# Plotting & Notebooks
-matplotlib>=3.10.0
-plotly>=6.0.0
-ipykernel>=7.0.0
-ipywidgets>=8.0.0
-ipympl>=0.9.0
-
-# Physics
-NuRadioMC>=3.0.3
-radiotools>=0.2.5
-
-# HDF5 Compression
-cramjam>=2.11.0
+# Documentation & Code Formatting (Optional for production)
+numpydoc
+sphinx_rtd_theme
+pre_commit
