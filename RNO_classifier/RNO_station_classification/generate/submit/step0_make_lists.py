@@ -23,7 +23,7 @@ from NuRadioReco.utilities import units
 from NuRadioMC.EvtGen.generator import generate_eventlist_cylinder
 
 # ── Top-level output directory ────────────────────────────────────────────────
-BASE_DIR = "/data/condor_shared/users/ssued/RNO_machine_learning/RNO_machine_learning/RNO_classifier/RNO_station_classification/generate/submit/condor/sim_data"
+BASE_DIR = "/data/condor_shared/users/ssued/RNO_machine_learning/RNO_classifier/RNO_station_classification/generate/submit/condor/sim_data"
 
 # ── Config for veff mode ──────────────────────────────────────────────────────
 VEFF_LOG10_ENERGIES = [17, 18, 19, 20]

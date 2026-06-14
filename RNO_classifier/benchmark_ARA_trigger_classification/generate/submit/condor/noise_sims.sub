@@ -13,11 +13,11 @@ request_disk = 3G
 # ----------------------------------------------------------------------
 # PATH DEFINITIONS
 # ----------------------------------------------------------------------
-IN_DIR = /data/condor_shared/users/ssued/RNO_machine_learning/RNO_machine_learning/RNO_classifier/benchmark_ARA_trigger_classification/generate/submit/condor/sim_data/noise/step0
-OUT_DIR = /data/condor_shared/users/ssued/RNO_machine_learning/RNO_machine_learning/RNO_classifier/benchmark_ARA_trigger_classification/generate/submit/condor/sim_data/noise/0_1Vrms_step2
+IN_DIR = /data/condor_shared/users/ssued/RNO_machine_learning/RNO_classifier/benchmark_ARA_trigger_classification/generate/submit/condor/sim_data/noise/step0
+OUT_DIR = /data/condor_shared/users/ssued/RNO_machine_learning/RNO_classifier/benchmark_ARA_trigger_classification/generate/submit/condor/sim_data/noise/0_1Vrms_step2
 
 # UPDATE THESE THREE PATHS TO ACTUAL FILES
-SCRIPT_PATH = /data/condor_shared/users/ssued/RNO_machine_learning/RNO_machine_learning/RNO_classifier/benchmark_ARA_trigger_classification/generate/step2_run_sims.py
+SCRIPT_PATH = /data/condor_shared/users/ssued/RNO_machine_learning/RNO_classifier/benchmark_ARA_trigger_classification/generate/step2_run_sims.py
 STATION_JSON = station.json
 CONFIG_YAML = config_noise.yaml
 

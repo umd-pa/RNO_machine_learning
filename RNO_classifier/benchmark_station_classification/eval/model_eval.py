@@ -247,7 +247,7 @@ print('###########################\n')
 
 # Load eval dataset (For now its just testing dataset)
 
-test_dataset_path = '/data/condor_shared/users/ssued/RNO_machine_learning/RNO_machine_learning/RNO_classifier/data/extracted_nu.hdf5'
+test_dataset_path = '/data/condor_shared/users/ssued/RNO_machine_learning/RNO_classifier/data/extracted_nu.hdf5'
 
 with h5py.File(test_dataset_path, 'r') as h5f:
     snr_arr = []
