@@ -153,12 +153,11 @@ def iter_events(nur_path: str, label: int, hw_resp: HardwareResponse):
         noised_undigitized = np.stack([ch_data[c] for c in NOISED_CHANNELS])
 
         noiseless_undigitized = None
-        if station.has_sim_station():
-            sim = station.get_sim_station()
+        if label==1:
             sim_data = {
-                sc.get_id(): sc.get_trace().astype(np.float32) * scale
-                for sc in sim.iter_channels()
-                if sc.get_id() in SIM_CHANNELS
+                c.get_id(): c.get_trace().astype(np.float32) * scale
+                for c in station.iter_channels()
+                if c.get_id() in SIM_CHANNELS
             }
             if len(sim_data) == 4:
                 noiseless_undigitized = np.stack([sim_data[c] for c in SIM_CHANNELS])
