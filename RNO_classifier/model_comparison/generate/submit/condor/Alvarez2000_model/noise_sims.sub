@@ -1,0 +1,46 @@
+# ----------------------------------------------------------------------
+# sims.sub
+# ----------------------------------------------------------------------
+universe = vanilla
+# Set to own venv
+executable = /data/condor_shared/users/nmanic/nuradio/myVENV/bin/python3
+
+# Mimicking Slurm hardware requirements
+request_cpus = 1
+request_memory = 3G
+request_disk = 3G
+
+# ----------------------------------------------------------------------
+# PATH DEFINITIONS
+# ----------------------------------------------------------------------
+IN_DIR = /data/condor_shared/users/ssued/RNO_machine_learning/RNO_classifier/benchmark_ARA_trigger_classification/generate/submit/condor/sim_data/noise/step0
+OUT_DIR = /data/condor_shared/users/nmanic/RNO_machine_learning/RNO_classifier/model_comparison/generate/submit/condor/Alvarez2000_model/noise/step2
+
+# UPDATE THESE THREE PATHS TO ACTUAL FILES
+SCRIPT_PATH = /data/condor_shared/users/nmanic/RNO_machine_learning/RNO_classifier/benchmark_ARA_trigger_classification/generate/step2_run_sims.py
+STATION_JSON = /data/condor_shared/users/nmanic/RNO_machine_learning/RNO_classifier/benchmark_ARA_trigger_classification/generate/station.json
+CONFIG_YAML = /data/condor_shared/users/nmanic/RNO_machine_learning/RNO_classifier/model_comparison/generate/configs/config_noiseAlvarez2000.yaml
+
+# ----------------------------------------------------------------------
+# PADDING THE JOB ID
+# ----------------------------------------------------------------------
+# $(Process) automatically counts from 0 to 99 during the queue.
+# $INT(Process,%06d) pads that number with zeros (e.g., 0 -> 000000, 15 -> 000015)
+FILE_ID = $INT(Process,%06d)
+
+# ----------------------------------------------------------------------
+# EXECUTION COMMAND
+# ----------------------------------------------------------------------
+# for nu
+# arguments = "$(SCRIPT_PATH) $(IN_DIR)/nu_f$(FILE_ID).hdf5 $(STATION_JSON) $(CONFIG_YAML) $(OUT_DIR)/nu_f$(FILE_ID).hdf5 $(OUT_DIR)/nu_f$(FILE_ID).nur --threshold 0.1 --trig_chan 40" 
+# for noise
+arguments = "$(SCRIPT_PATH) $(IN_DIR)/noise_f$(FILE_ID).hdf5 $(STATION_JSON) $(CONFIG_YAML) $(OUT_DIR)/noise_f$(FILE_ID).hdf5 $(OUT_DIR)/noise_f$(FILE_ID).nur --threshold 0.01 --trig_chan 0"
+# ----------------------------------------------------------------------
+# HOUSEKEEPING
+# ----------------------------------------------------------------------
+output = /data/condor_shared/users/nmanic/RNO_machine_learning/RNO_classifier/model_comparison/generate/submit/condor/Alvarez2000_model/logs/noise_f$(FILE_ID).out
+error  = /data/condor_shared/users/nmanic/RNO_machine_learning/RNO_classifier/model_comparison/generate/submit/condor/Alvarez2000_model/logs/noise_f$(FILE_ID).out
+log    = /data/condor_shared/users/nmanic/RNO_machine_learning/RNO_classifier/model_comparison/generate/submit/condor/Alvarez2000_model/logs/noise_f$(FILE_ID).log
+
+# Submit 100 parallel jobs (Process 0 through 99)
+queue 100
