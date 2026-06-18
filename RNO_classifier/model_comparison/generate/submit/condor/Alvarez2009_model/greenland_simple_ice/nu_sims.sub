@@ -14,7 +14,7 @@ request_disk = 3G
 # PATH DEFINITIONS
 # ----------------------------------------------------------------------
 IN_DIR = /data/condor_shared/users/ssued/RNO_machine_learning/RNO_classifier/benchmark_ARA_trigger_classification/generate/submit/condor/sim_data/nu/step0
-OUT_DIR = $(SUBMIT_DIR)/nu/step2
+OUT_DIR = /data/condor_shared/users/nmanic/RNO_machine_learning/RNO_classifier/model_comparison/generate/submit/condor/Alvarez2009_model/greenland_simple_ice/nu/step2
 
 # UPDATE THESE THREE PATHS TO ACTUAL FILES
 SCRIPT_PATH = /data/condor_shared/users/nmanic/RNO_machine_learning/RNO_classifier/benchmark_ARA_trigger_classification/generate/step2_run_sims.py

@@ -3,7 +3,7 @@
 # ----------------------------------------------------------------------
 universe = vanilla
 # Set to own venv
-executable = /data/condor_shared/users/ssued/mlvenv/bin/python 
+executable = /data/condor_shared/users/nmanic/nuradio/myVENV/bin/python3
 
 # Mimicking Slurm hardware requirements
 request_cpus = 1
@@ -14,20 +14,19 @@ request_disk = 3G
 # PATH DEFINITIONS
 # ----------------------------------------------------------------------
 IN_DIR = /data/condor_shared/users/ssued/RNO_machine_learning/RNO_classifier/benchmark_ARA_trigger_classification/generate/submit/condor/sim_data/noise/step0
-OUT_DIR = /data/condor_shared/users/nmanic/RNO_machine_learning/RNO_classifier/model_comparison/generate/submit/condor/Alvarez2009_model/southpole_simple_ice/noise/step2
+OUT_DIR = /data/condor_shared/users/nmanic/RNO_machine_learning/RNO_classifier/model_comparison/generate/submit/condor/ARZ2020_model/noise/step2
 
 # UPDATE THESE THREE PATHS TO ACTUAL FILES
 SCRIPT_PATH = /data/condor_shared/users/nmanic/RNO_machine_learning/RNO_classifier/benchmark_ARA_trigger_classification/generate/step2_run_sims.py
 STATION_JSON = /data/condor_shared/users/nmanic/RNO_machine_learning/RNO_classifier/benchmark_ARA_trigger_classification/generate/station.json
-CONFIG_YAML = /data/condor_shared/users/nmanic/RNO_machine_learning/RNO_classifier/model_comparison/generate/configs/config_noise_southpoleice.yaml
+CONFIG_YAML = /data/condor_shared/users/nmanic/RNO_machine_learning/RNO_classifier/model_comparison/generate/configs/config_noiseARZ2020.yaml
 
 # ----------------------------------------------------------------------
 # PADDING THE JOB ID
 # ----------------------------------------------------------------------
 # $(Process) automatically counts from 0 to 99 during the queue.
-# $INT(Process,%06d) pads that number with zeros (e.g., 0 -> 000000, 15 -> 000015) (Can add + value to TEMP_ID for index skipping)
-TEMP_ID = $(Process)
-FILE_ID = $INT(TEMP_ID,%06d)
+# $INT(Process,%06d) pads that number with zeros (e.g., 0 -> 000000, 15 -> 000015)
+FILE_ID = $INT(Process,%06d)
 
 # ----------------------------------------------------------------------
 # EXECUTION COMMAND
@@ -39,9 +38,9 @@ arguments = "$(SCRIPT_PATH) $(IN_DIR)/noise_f$(FILE_ID).hdf5 $(STATION_JSON) $(C
 # ----------------------------------------------------------------------
 # HOUSEKEEPING
 # ----------------------------------------------------------------------
-output = /data/condor_shared/users/nmanic/RNO_machine_learning/RNO_classifier/model_comparison/generate/submit/condor/Alvarez2009_model/southpole_simple_ice/logs/noise_f$(FILE_ID).out
-error  = /data/condor_shared/users/nmanic/RNO_machine_learning/RNO_classifier/model_comparison/generate/submit/condor/Alvarez2009_model/southpole_simple_ice/logs/noise_f$(FILE_ID).out
-log    = /data/condor_shared/users/nmanic/RNO_machine_learning/RNO_classifier/model_comparison/generate/submit/condor/Alvarez2009_model/southpole_simple_ice/logs/noise_f$(FILE_ID).log
+output = /data/condor_shared/users/nmanic/RNO_machine_learning/RNO_classifier/model_comparison/generate/submit/condor/ARZ2020_model/logs/noise_f$(FILE_ID).out
+error  = /data/condor_shared/users/nmanic/RNO_machine_learning/RNO_classifier/model_comparison/generate/submit/condor/ARZ2020_model/logs/noise_f$(FILE_ID).out
+log    = /data/condor_shared/users/nmanic/RNO_machine_learning/RNO_classifier/model_comparison/generate/submit/condor/ARZ2020_model/logs/noise_f$(FILE_ID).log
 
 # Submit 100 parallel jobs (Process 0 through 99)
 queue 100

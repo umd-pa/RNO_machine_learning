@@ -4,10 +4,9 @@ speedup:
   minimum_weight_cut: 1.e-5
   delta_C_cut: 0.698  # 40 degree
 propagation:
-  ice_model: ARAsim_southpole
+  ice_model: greenland_simple
 signal:
-  model: Alvarez2009
-  zerosignal: True
+  model: ARZ2020
 trigger:
   noise_temperature: 300  # in Kelvin
 weights:

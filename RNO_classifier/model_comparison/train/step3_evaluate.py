@@ -8,10 +8,13 @@ Usage:
         --signal     signal.h5 \
         --noise      noise.h5  \
         [--target-fpr 1e-5] \
-        [--out        runs/exp01/eval]
+        [--out        runs/exp01/eval] \
+        [--cross-eval] 
 
 The --signal / --noise files and --val-frac / --seed must match what was used
 in step2_train.py (defaults are identical, so you only need to change them if you did).
+Pass --cross-eval if you want to evaluate the contents of new signal and noise files instead of val-split indices saved in the checkpoint.
+--cross eval necessary for evaluating model on different dataset than what it was trained on.
 
 Outputs (inside --out):
     roc_curve.png           — ROC with operating point marked
@@ -301,6 +304,7 @@ def parse_args():
     p.add_argument("--target-fpr", type=float, default=1e-3)
     p.add_argument("--out",        default=None)
     p.add_argument("--batch-size", type=int,   default=512)
+    p.add_argument("--cross-eval", action="store_true", help="Eval on full new dataset instead of checkpoint indices")
     return p.parse_args()
 
 
@@ -325,13 +329,22 @@ def main():
     model.load_state_dict(ckpt["model_state"])
 
     # ── load val indices saved by step2_train.py ───────────────────────────────────
-    if "sig_val_idx" not in ckpt or "noi_val_idx" not in ckpt:
-        sys.exit(
-            "ERROR: checkpoint does not contain val indices.\n"
-            "Re-run step2_train.py to produce a new checkpoint, then evaluate again."
-        )
-    sig_val_idx = ckpt["sig_val_idx"]
-    noi_val_idx = ckpt["noi_val_idx"]
+
+    if args.cross_eval:
+        with h5py.File(args.signal, "r") as f:
+            n_sig = f["waveforms"].shape[0]
+        with h5py.File(args.noise, "r") as f:
+            n_noi = f["waveforms"].shape[0]
+        sig_val_idx = np.arange(n_sig)
+        noi_val_idx = np.arange(n_noi)
+    else:
+        if "sig_val_idx" not in ckpt or "noi_val_idx" not in ckpt:
+                sys.exit(
+                    "ERROR: checkpoint does not contain val indices.\n"
+                    "Re-run step2_train.py to produce a new checkpoint, then evaluate again."
+                )
+        sig_val_idx = ckpt["sig_val_idx"]
+        noi_val_idx = ckpt["noi_val_idx"]
 
     crop = cfg.get("crop_samples", None)
     val_ds = ConcatDataset([
