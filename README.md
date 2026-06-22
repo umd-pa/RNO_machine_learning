@@ -62,39 +62,16 @@ RNO_machine_learning/
 │   │   └── train/
 │   │       ├── go_extract.sh
 │   │       ├── go_train.sh
-│   │       ├── requirements.txt
 │   │       ├── step1_extract.py
 │   │       ├── step1b_plot_dataset.py
 │   │       ├── step2_train.py
-│   │       ├── step2_train_old.py
 │   │       └── step3_evaluate.py
-│   ├── benchmark_station_classification/
-│   │   ├── data/
-│   │   ├── eval/
+│   ├── benchmark_station_classification/ # Generate and train pipelines are the same as other classification experiments
 │   │   ├── generate/
 │   │   └── train/
-│   ├── RNO_station_classification/
+│   ├── RNO_station_classification/ # Generate and train pipelines are the same as other classification experiments
 │   │   ├── generate/
-│   │   │   ├── RNO_single_station.json
-│   │   │   ├── config_noise.yaml
-│   │   │   ├── config_signal.yaml
-│   │   │   ├── data/
-│   │   │   ├── go_generate.sh
-│   │   │   ├── step1_make_lists.py
-│   │   │   ├── step2_run_sims.py
-│   │   │   ├── step3_plot_traces.py
-│   │   │   └── submit/
-│   │   └── train/
-│   │       ├── go_extract.sh
-│   │       ├── go_train.sh
-│   │       ├── requirements.txt
-│   │       ├── step1_extract.py
-│   │       ├── step1b_plot_dataset.py
-│   │       ├── step2_train.py
-│   │       ├── step2_train_old.py
-│   │       └── step3_evaluate.py
-│   ├── debug.ipynb
-│   └── debugging_folder/
+│   └── └── train/
 └── RNO_vertex_reconstruction/
     ├── generate/
     │   ├── jobs/
