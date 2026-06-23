@@ -15,8 +15,8 @@ in step2_train.py (defaults are identical, so you only need to change them if yo
 
 Outputs (inside --out):
     roc_curve.png           — ROC with operating point marked
-    confusion_matrix.png    — at chosen threshold, will compare with trigger if provided in .hdf5 file
-    efficiency_vs_snr.png   — signal efficiency vs max-channel SNR
+    confusion_matrix.png    — at chosen threshold
+    efficiency_vs_snr.png   — signal efficiency vs max-channel SNR, will compare with trigger if provided in .hdf5 file
     scores.npz              — raw scores, labels, SNR (for custom analysis)
     summary.txt             — threshold, FPR, TPR, rejection factor
 """

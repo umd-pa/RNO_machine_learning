@@ -12,7 +12,8 @@ Run once for signal, once for noise. If you want typical amplification (x1500) u
     NONE: Do not apply any gain/hardware amp. It is assumed it was already applied during simulation
 
 --trigger:
-    Define which trigger to test if it triggered during simulation. Default is 'rnog_proxy_3.5sigma'. Type "None" if this is not desired
+    Define which trigger (defined during simulation) to test if it triggered during simulation. 
+    Default is 'rnog_proxy_3.5sigma'. Type "None" if this is not desired
 
 Output HDF5 layout:
     /waveforms   float32  (N, 4, T)  — raw voltage traces, channels 0–3
@@ -375,7 +376,7 @@ def main():
     p.add_argument("--label", required=True, type=int, choices=[0, 1],
                    help="1 = signal, 0 = noise")
     p.add_argument("--hw-resp", choices=[m.name for m in HardwareResponse], default="NONE", help="Hardware response mode (default: NONE)")
-    p.add_argument("--trigger", default="rnog_proxy_3.5sigma", help="Trigger name to check if it fired during simulation (Use 'None' for no trigger firing)")
+    p.add_argument("--trigger", required=True, help="Name of the simulated trigger to run (e.g., 'rnog_proxy_3.5sigma' or 'None'). Saves a 1 if the trigger fires, or a 0 if it does not.")
     p.add_argument("--out",   required=True, help="Output HDF5 path")
     args = p.parse_args()
 

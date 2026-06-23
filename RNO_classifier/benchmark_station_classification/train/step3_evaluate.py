@@ -16,7 +16,7 @@ in step2_train.py (defaults are identical, so you only need to change them if yo
 Outputs (inside --out):
     roc_curve.png           — ROC with operating point marked
     confusion_matrix.png    — at chosen threshold
-    efficiency_vs_snr.png   — signal efficiency vs max-channel SNR
+    efficiency_vs_snr.png   — signal efficiency vs max-channel SNR, will compare with trigger if provided in .hdf5 file
     scores.npz              — raw scores, labels, SNR (for custom analysis)
     summary.txt             — threshold, FPR, TPR, rejection factor
 """
@@ -29,6 +29,7 @@ import h5py
 import numpy as np
 import torch
 from torch.utils.data import ConcatDataset, DataLoader
+from scipy.special import erf
 
 try:
     import matplotlib
@@ -77,6 +78,22 @@ def threshold_at_fpr(fpr_arr, tpr_arr, thresholds, target_fpr):
 
 
 # ── plots ─────────────────────────────────────────────────────────────────────
+
+def rnog_paper_sigmoid(snr, snr_50, width=0.35):
+    """
+    Models the trigger efficiency turn-on curve using an Error Function (Gaussian CDF).
+    
+    Parameters:
+    -----------
+    snr : array-like
+        The single-antenna SNR array for the x-axis.
+    snr_50 : float
+        The 50% efficiency point reported in the RNO-G paper.
+    width : float
+        Controls the steepness of the turn-on. 0.35 closely mirrors 
+        the visual steepness of the curves in Figure 27.
+    """
+    return 0.5 * (1 + erf((snr - snr_50) / (width * np.sqrt(2))))
 
 def plot_roc(fpr, tpr, roc_auc, op_fpr, op_tpr, target_fpr, path):
     if not _HAS_MPL:
@@ -171,12 +188,13 @@ def plot_confusion(y_true, y_pred, path):
 #     fig.tight_layout(); fig.savefig(path, dpi=150); plt.close(fig)
 #     print(f"Saved: {path}")
 
-def plot_efficiency_vs_snr(scores, labels, snr_per_event, threshold, path,
-                           n_bins=20, snr_max=6.0):
+def plot_efficiency_vs_snr(scores, labels, snr_per_event, threshold, path, trigger_scores = None,
+                           n_bins=20, snr_max=6.0, save_csv=True):
     if not _HAS_MPL:
         return
     sig_mask   = labels == 1
     sig_scores = scores[sig_mask]
+    sig_trigger_scores = trigger_scores[sig_mask] if trigger_scores is not None else None
     sig_snr    = snr_per_event[sig_mask]
     if not np.any(sig_snr > 0):
         print("WARNING: no positive signal SNR values — skipping efficiency plot.")
@@ -206,9 +224,48 @@ def plot_efficiency_vs_snr(scores, labels, snr_per_event, threshold, path,
     counts = np.array(counts)
     valid  = counts > 0
 
-    fig, ax = plt.subplots(figsize=(7, 4))
+    if sig_trigger_scores is not None:
+        trigger_effs, trigger_errs, trigger_counts = [], [], []
+        for lo, hi in zip(all_edges[:-1], all_edges[1:]):
+            mask  = (sig_snr >= lo) & (sig_snr < hi)
+            n_tot = mask.sum()
+            if n_tot == 0:
+                trigger_effs.append(np.nan); trigger_errs.append(0.0); trigger_counts.append(0)
+                continue
+            n_pass = (sig_trigger_scores[mask] >= threshold).sum()
+            eff    = n_pass / n_tot
+            trigger_effs.append(eff)
+            trigger_errs.append(np.sqrt(eff * (1 - eff) / n_tot))
+            trigger_counts.append(n_tot)
+
+        trigger_effs   = np.array(trigger_effs)
+        trigger_errs   = np.array(trigger_errs)
+        trigger_counts = np.array(trigger_counts)
+        trigger_valid  = trigger_counts > 0
+
+    if save_csv:
+        csv_path = Path(path).parent / "eff_vs_snr.csv"
+        data = np.vstack([centres[valid], effs[valid], errs[valid]]).T
+        header = "binned_snr,binned_eff,binned_eff_error"
+        np.savetxt(csv_path, data, delimiter=",", header=header, comments="")
+        print(f"Saved: {csv_path}")
+
+    # Include Paper Eff vs. SNR graphs
+    # snr_axis = np.linspace(0, 6, 1000)
+    # eff_phased_1deg        = rnog_paper_sigmoid(snr_axis, snr_50=3.4, width=0.45)
+    # eff_phased_4deg        = rnog_paper_sigmoid(snr_axis, snr_50=2.9, width=0.45)
+    fig, ax = plt.subplots(figsize=(10, 4))
+
     ax.errorbar(centres[valid], effs[valid], yerr=errs[valid],
-                fmt="o-", capsize=4, label="Efficiency")
+                fmt="o-", capsize=4, label="Efficiency", color='tab:orange')
+    if trigger_scores is not None:
+        ax.errorbar(centres[trigger_valid], trigger_effs[trigger_valid], yerr=trigger_errs[trigger_valid],
+                fmt="o-", capsize=4, label="Trigger Efficiency", color='tab:blue')
+    # ax.plot(snr_axis, eff_phased_1deg, color='blue', linestyle='-', 
+    #         label='Phased (1° off-cone)')
+
+    # ax.plot(snr_axis, eff_phased_4deg, color='red', linestyle='-', 
+    #         label='Phased (4° off-cone)')
     ax.axhline(0.5, ls="--", color="gray", alpha=0.7)
     ax.axvline(snr_max, ls=":", color="gray", alpha=0.5)
     ax.text(snr_max + 0.05, 0.05, "overflow", fontsize=8, color="gray")
@@ -227,7 +284,7 @@ def plot_efficiency_vs_snr(scores, labels, snr_per_event, threshold, path,
 
     lines1, labs1 = ax.get_legend_handles_labels()
     lines2, labs2 = ax2.get_legend_handles_labels()
-    ax.legend(lines1 + lines2, labs1 + labs2, fontsize=9)
+    ax.legend(lines1 + lines2, labs1 + labs2, loc='upper left', fontsize=8)
 
     fig.tight_layout(); fig.savefig(path, dpi=150); plt.close(fig)
     print(f"Saved: {path}")
@@ -317,7 +374,18 @@ def main():
     # Gather SNR for signal val events (from HDF5 directly)
     with h5py.File(args.signal, "r") as f:
         sig_snr_all = f["snr"][:]          # (N_sig, 4)
+        trigger_scores_all = f["triggered"][:] if "triggered" in f else None # (N_sig,)
+
     sig_snr_val = sig_snr_all[sig_val_idx]
+    if trigger_scores_all is not None:
+        print('Found triggered dataset, will plot this as well for comparison')
+        trigger_scores_val = trigger_scores_all[sig_val_idx]
+        noise_trigger_val = np.zeros(len(noi_val_idx), dtype=np.int8)
+        trigger_scores_val = np.concatenate([trigger_scores_val, noise_trigger_val], axis=0)
+    else:
+        print('Did not find triggered dataset')
+        trigger_scores_val = None
+        
     # Pad noise SNR with NaN so arrays align with val_labels
     noise_snr_val = np.full((len(noi_val_idx), 4), float("nan"), dtype=np.float32)
     snr_val = np.concatenate([sig_snr_val, noise_snr_val], axis=0)
@@ -358,7 +426,7 @@ def main():
     plot_confusion(val_labels.astype(int), (scores >= threshold).astype(int),
                    out_dir / "confusion_matrix.png")
     plot_efficiency_vs_snr(scores, val_labels, snr_per_event,
-                           threshold, out_dir / "efficiency_vs_snr.png")
+                           threshold, out_dir / "efficiency_vs_snr.png", trigger_scores=trigger_scores_val)
     print_summary(threshold, op_fpr, op_tpr, roc_auc,
                   args.target_fpr, out_dir / "summary.txt")
 
