@@ -3,8 +3,10 @@ import argparse
 import NuRadioReco.modules.trigger.simpleThreshold
 import NuRadioReco.modules.channelBandPassFilter
 import NuRadioReco.modules.ARA.hardwareResponseIncorporator
+import NuRadioReco.modules.phasedarray.phasedArrayTrigger
 from NuRadioReco.utilities import units
 from NuRadioMC.simulation import simulation
+import numpy as np
 import os
 
 def get_abs_path(rel_path):
@@ -19,6 +21,7 @@ def get_abs_path(rel_path):
 channelBandPassFilter = NuRadioReco.modules.channelBandPassFilter.channelBandPassFilter()
 simpleThreshold = NuRadioReco.modules.trigger.simpleThreshold.triggerSimulator()
 hardware_response = NuRadioReco.modules.ARA.hardwareResponseIncorporator.hardwareResponseIncorporator()
+phasedArrayTrigger = NuRadioReco.modules.phasedarray.phasedArrayTrigger.PhasedArrayTrigger()
 
 class mySimulation(simulation.simulation):
 
@@ -33,7 +36,7 @@ class mySimulation(simulation.simulation):
 
     def _detector_simulation_trigger(self, evt, station, det):
 
-        # simple threshold trigger
+        # simple threshold trigger, becomes the primary trigger because it always triggers first
         simpleThreshold.run(evt, station, det,
                              threshold=self.threshold * self._Vrms,
                              triggered_channels=[self.trig_chan],
@@ -41,18 +44,14 @@ class mySimulation(simulation.simulation):
                              pre_trigger_time=1000 * units.ns,
                              trigger_name='tuned_threshold')
 
-        # RNO-G phased array proxy 
-        # https://arxiv.org/abs/2411.12922, Fig 27
-        # We anchor the trigger to channel 40 (the noiseless version of ch 0, at -100)
-        # (therefore, this will never fire for signal-less sims, e.g. noise sims).
-        # We'd really like this to be an average snr trigger (to match the CNN)
-        # but this will work for now.
-        simpleThreshold.run(evt, station, det,
-                             threshold=3.5 * self._Vrms,
-                             triggered_channels=[40],  
-                             number_concidences=1,
-                             pre_trigger_time=1000 * units.ns,
-                             trigger_name='rnog_proxy_3.5sigma')
+        # RNO-G phased array. Trigger threshold calculated using T01MeasureNoiselevel.py in phased array examples to have 
+        # approximately 1Hz trigger rate
+        phasedArrayTrigger.run(evt, station, det, 
+                             threshold=38 * np.power(self._Vrms, 2.0),
+                             triggered_channels=[40,41,42,43],
+                             trigger_name='rnog_phased_array_1.7Hz',
+                             apply_digitization=False # We already handle digitization later
+                             )
 
 
 parser = argparse.ArgumentParser(description='Run NuRadioMC simulation')
