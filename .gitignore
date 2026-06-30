@@ -24,6 +24,7 @@ RNO_machine_learning/utils_dir/build_v_dset_splits.py
 !create_dagman_config.yaml
 */model_evals/*
 */manifests/
+*legacy*
 *.txt
 *.png
 *.pt
