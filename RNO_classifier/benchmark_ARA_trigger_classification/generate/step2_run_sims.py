@@ -25,14 +25,15 @@ phasedArrayTrigger = NuRadioReco.modules.phasedarray.phasedArrayTrigger.PhasedAr
 
 class mySimulation(simulation.simulation):
 
-    def __init__(self, threshold=1.0, trig_chan=0, **kwargs):
+    def __init__(self, threshold=1.0, trig_chan=0, path=None, **kwargs):
         self.threshold = threshold
         self.trig_chan = trig_chan
+        self.path = path
         super().__init__(**kwargs)
         print(f"Running with threshold: {self.threshold}, trig chan {self.trig_chan}")
     
     def _detector_simulation_filter_amp(self, evt, station, det):
-        hardware_response.run(evt, station, det, sim_to_data=True)
+        hardware_response.run(evt, station, det, sim_to_data=True, path=self.path)
 
     def _detector_simulation_trigger(self, evt, station, det):
 
@@ -69,6 +70,8 @@ parser.add_argument('--threshold', type=float, required=True,
                     help='the threshold')
 parser.add_argument('--trig_chan', type=int, required=True,
                     help='the trigger channel')
+parser.add_argument('--hw_path', type=str, default=None, required=False,
+                    help="path to hardware response file with gain & phase info")
 args = parser.parse_args()
 
 if __name__ == "__main__":
@@ -80,6 +83,7 @@ if __name__ == "__main__":
                                 config_file=get_abs_path(args.config),
                                 file_overwrite=True,
                                 threshold=args.threshold,
-                                trig_chan=args.trig_chan
+                                trig_chan=args.trig_chan,
+                                path=args.hw_path
                                 )
     sim.run()

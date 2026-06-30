@@ -10,7 +10,9 @@ Modes:
 
 from __future__ import absolute_import, division, print_function
 import argparse
+import yaml
 import os
+from pathlib import Path
 from multiprocessing import Pool
 
 # ── Thread throttling (set before any numpy/scipy imports) ────────────────────
@@ -139,8 +141,8 @@ def run_noise(n_jobs, start_index, base_dir):
 
 def parse_args():
     p = argparse.ArgumentParser(description="Generate NuRadioMC input event lists.")
-    p.add_argument('base_dir', type=str,
-                   help="Top-level output directory")
+    p.add_argument('data_dir', type=str,
+                   help="Top-level data directory")
     p.add_argument('--jobs', type=int, default=1,
                    help="Number of parallel worker processes (default: 1)")
     p.add_argument('--start-index', type=int, default=0,
@@ -150,5 +152,8 @@ def parse_args():
 
 if __name__ == '__main__':
     args = parse_args()
-    run_nu(args.jobs, args.start_index, args.base_dir)
-    run_noise(args.jobs, args.start_index, args.base_dir)
+    run_nu(args.jobs, args.start_index, args.data_dir)
+    run_noise(args.jobs, args.start_index, args.data_dir)
+    script_dir = Path(__file__).parent.resolve()
+    with open(script_dir / 'user_cfg.yaml', "w", encoding='UTF-8') as f:
+        yaml.dump({'data_dir' : args.data_dir}, f)

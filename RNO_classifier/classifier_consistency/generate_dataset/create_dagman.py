@@ -1,14 +1,23 @@
-import shutil
 import argparse
 import yaml
 import os
 from pathlib import Path
 
 def check_yaml():
-    ...
-    #look inside folder
-    #if no yaml found raise exception
-    #else return yaml basedir
+    proj_dir = Path(__file__).resolve().parent.parent
+    yaml_path = proj_dir / 'user_config.yaml'
+    with open(yaml_path, 'r', encoding='utf-8') as f:
+        yaml_content = yaml.safe_load(f)
+        return yaml_content
+
+def get_abs_path(rel_path):
+    """
+    Converts a relative path to an absolute path based on 
+    the location of THIS script (create_dagman.py).
+    """
+    # This gets the folder where create_dagman.py lives (e.g., .../jobs/)
+    base = os.path.dirname(os.path.abspath(__file__))
+    return os.path.abspath(os.path.join(base, rel_path))
 
 def main():
     # --- argparsing ---------------
@@ -20,8 +29,14 @@ def main():
     p.add_argument("--att_model", choices=["GL3", "GL3_plus_sigma", "GL3_minus_sigma"],
                     default="GL3", required=False, help="Signal attenuation model to be used during simulation")
     p.add_argument("--hw_resp", choices=[None, "gain_plus_sigma", "gain_minus_sigma"], default=None, required=False, help="Path to hardware response data with gain & phase per frequency")
-    p.add_argument("--output_dir", default=check_yaml, help="Top-level output directory")
+    p.add_argument("--data_dir", default=None, help="Top-level data directory")
     args = p.parse_args()
+
+    if args.data_dir is None:
+        try:
+            data_dir = check_yaml()['data_dir']
+        except Exception as e:
+            p.error(f'Failed to load default data_dir from Yaml: {e}')
 
     sim_params = ["ice_model", "signal_model", "att_model", "hw_resp"]
     is_benchmark = all(getattr(args, param) == p.get_default(param) for param in sim_params)
@@ -37,21 +52,22 @@ def main():
         if count > 1:
             multiple_changed_params=True
 
-    hw_path = "/data/condor_shared/users/nmanic/nuradio/myVENV/lib/python3.10/site-packages/NuRadioMC/NuRadioReco/detector/ARA/HardwareResponses/ARA_Electronics_TotalGain_TwoFilters.txt"
-    if args.hw_resp == "gain_plus_sigma":
-        hw_path = "/data/condor_shared/users/nmanic/nuradio/myVENV/lib/python3.10/site-packages/NuRadioMC/NuRadioReco/detector/ARA/HardwareResponses/ARA_Electronics_TotalGain_TwoFilters_plus_sigma.txt"
-    elif args.hw_resp == "gain_minus_sigma":
-        hw_path = "/data/condor_shared/users/nmanic/nuradio/myVENV/lib/python3.10/site-packages/NuRadioMC/NuRadioReco/detector/ARA/HardwareResponses/ARA_Electronics_TotalGain_TwoFilters_minus_sigma.txt"
-
     # --- directory setup ---------------
     if is_benchmark:
-        main_dir = f"{args.output_dir}/classifier_consistency/{args.signal_model}/benchmark"
+        main_dir = f"{data_dir}/classifier_consistency/{args.signal_model}/benchmark"
     elif multiple_changed_params:
-        main_dir = f"{args.output_dir}/classifier_consistency/{args.signal_model}/other/{args.ice_model}-{args.att_model}"
+        main_dir = f"{data_dir}/classifier_consistency/{args.signal_model}/other/{args.ice_model}-{args.att_model}-{args.hw_resp}"
     else:
-        main_dir = f"{args.output_dir}/classifier_consistency/{args.signal_model}/{sec_dir}/{third_dir}"
+        main_dir = f"{data_dir}/classifier_consistency/{args.signal_model}/{sec_dir}/{third_dir}"
 
     Path(main_dir).mkdir(parents=True, exist_ok=True)
+    nur_dir = f"{main_dir}/nur"
+    Path(nur_dir).mkdir(parents=True, exist_ok=True)
+    nu_logs_dir = f"{nur_dir}/nu/logs"
+    noise_logs_dir = f"{nur_dir}/noise/logs"
+    extract_logs_dir = f"{main_dir}/logs"
+    Path(nu_logs_dir).mkdir(parents=True, exist_ok=True)
+    Path(noise_logs_dir).mkdir(parents=True, exist_ok=True)
 
     # --- create configs ---------------
     nu_config = {
@@ -104,7 +120,50 @@ def main():
     with open(f"{main_dir}/noise_config.yaml", "w") as f:
         yaml.dump(noise_config, f, default_flow_style=False, sort_keys=False)
 
-    # --- submit jobs ---------------
+    # --- paths ---------------
+    hw_path = "/data/condor_shared/users/nmanic/nuradio/myVENV/lib/python3.10/site-packages/NuRadioMC/NuRadioReco/detector/ARA/HardwareResponses/ARA_Electronics_TotalGain_TwoFilters.txt"
+    if args.hw_resp == "gain_plus_sigma":
+        hw_path = "/data/condor_shared/users/nmanic/nuradio/myVENV/lib/python3.10/site-packages/NuRadioMC/NuRadioReco/detector/ARA/HardwareResponses/ARA_Electronics_TotalGain_TwoFilters_plus_sigma.txt"
+    elif args.hw_resp == "gain_minus_sigma":
+        hw_path = "/data/condor_shared/users/nmanic/nuradio/myVENV/lib/python3.10/site-packages/NuRadioMC/NuRadioReco/detector/ARA/HardwareResponses/ARA_Electronics_TotalGain_TwoFilters_minus_sigma.txt"
+
+    generate_dir = Path(__file__).resolve().parent
+
+    nu_sub              = f"{generate_dir}/nu_sims.sub"
+    noise_sub           = f"{generate_dir}/noise_sims.sub"
+    extract_sub         = f"{generate_dir}/extract.sub"
+    station_path        = f"{generate_dir}/station.json"
+    sim_script_path          = f"{generate_dir}/step2_run_sims.py"
+    extract_script_path        = f"{generate_dir}/step1_extract.py"
+    nu_config_path      = f"{main_dir}/nu_config.yaml"
+    noise_config_path   = f"{main_dir}/noise_config.yaml"
+    neutrino_dir           = f"{data_dir}/classifier_consistency/neutrinos/"
+
+    # --- create dagman ---------------
+    if is_benchmark:
+        dag_filename = get_abs_path("benchmark.dag")
+    elif multiple_changed_params:
+        dag_filename = get_abs_path(f"{args.ice_model}-{args.att_model}-{args.hw_resp}.dag")
+    else:
+        dag_filename = get_abs_path(f"{third_dir}.dag")
+
+    with open(dag_filename, 'w') as f:
+        f.write("# HTCondor DAG file")
+
+        f.write(f"JOB nu_sim {nu_sub}\n")
+        f.write(f"VARS nu_sim input={step0_dir} output={nur_dir} step2={sim_script_path} station={station_path} config={nu_config_path} hw_path={hw_path}\n")
+
+        f.write(f"JOB noise_sim {noise_sub}\n")
+        f.write(f"VARS noise_sim input={step0_dir} output={nur_dir} step2={sim_script_path} station={station_path} config={noise_config_path} hw_path={hw_path}\n")
+
+        f.write(f"JOB extract_nu {extract_sub}\n")
+        f.write(f"VARS extract_nu input={nur_dir}/nu/*.nur output={main_dir} out_name=nu_extracted.hdf5 extract_path={extract_script_path} label=1\n")
+
+        f.write(f"JOB extract_noise {extract_sub}\n")
+        f.write(f"VARS extract_noise input=\"{nur_dir}/noise/*.nur\" output={main_dir} out_name=noise_extracted.hdf5 extract_path={extract_script_path} label=0\n")
+
+        f.write("PARENT nu_sim CHILD extract_nu\n")
+        f.write("PARENT noise_sim CHILD extract_noise\n")
 
 if __name__ == "__main__":
     main()
