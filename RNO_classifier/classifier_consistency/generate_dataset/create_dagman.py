@@ -37,6 +37,8 @@ def main():
             data_dir = check_yaml()['data_dir']
         except Exception as e:
             p.error(f'Failed to load default data_dir from Yaml: {e}')
+    else:
+        data_dir = args.data_dir
 
     sim_params = ["ice_model", "signal_model", "att_model", "hw_resp"]
     is_benchmark = all(getattr(args, param) == p.get_default(param) for param in sim_params)
@@ -60,12 +62,13 @@ def main():
     else:
         main_dir = f"{data_dir}/classifier_consistency/{args.signal_model}/{sec_dir}/{third_dir}"
 
+    nu_dir = f'{main_dir}/nu/nur'
+    noise_dir = f'{main_dir}/noise/nur'
+    nu_logs_dir = f'{main_dir}/nu/logs'
+    noise_logs_dir = f'{main_dir}/noise/logs'
     Path(main_dir).mkdir(parents=True, exist_ok=True)
-    nur_dir = f"{main_dir}/nur"
-    Path(nur_dir).mkdir(parents=True, exist_ok=True)
-    nu_logs_dir = f"{nur_dir}/nu/logs"
-    noise_logs_dir = f"{nur_dir}/noise/logs"
-    extract_logs_dir = f"{main_dir}/logs"
+    Path(nu_dir).mkdir(parents=True, exist_ok=True)
+    Path(noise_dir).mkdir(parents=True, exist_ok=True)
     Path(nu_logs_dir).mkdir(parents=True, exist_ok=True)
     Path(noise_logs_dir).mkdir(parents=True, exist_ok=True)
 
@@ -131,39 +134,41 @@ def main():
 
     nu_sub              = f"{generate_dir}/nu_sims.sub"
     noise_sub           = f"{generate_dir}/noise_sims.sub"
-    extract_sub         = f"{generate_dir}/extract.sub"
+    nu_extract_sub         = f"{generate_dir}/nu_extract.sub"
+    noise_extract_sub         = f"{generate_dir}/noise_extract.sub"
     station_path        = f"{generate_dir}/station.json"
-    sim_script_path          = f"{generate_dir}/step2_run_sims.py"
-    extract_script_path        = f"{generate_dir}/step1_extract.py"
+    sim_script_path          = f"{generate_dir}/simulate.py"
+    extract_script_path        = f"{generate_dir}/extract.py"
     nu_config_path      = f"{main_dir}/nu_config.yaml"
     noise_config_path   = f"{main_dir}/noise_config.yaml"
     neutrino_dir           = f"{data_dir}/classifier_consistency/neutrinos/"
 
     # --- create dagman ---------------
     if is_benchmark:
-        dag_filename = get_abs_path("benchmark.dag")
+        dag_filename = f'{main_dir}/benchmark.dag'
     elif multiple_changed_params:
-        dag_filename = get_abs_path(f"{args.ice_model}-{args.att_model}-{args.hw_resp}.dag")
+        dag_filename = f'{main_dir}/{args.ice_model}-{args.att_model}-{args.hw_resp}.dag'
     else:
-        dag_filename = get_abs_path(f"{third_dir}.dag")
+        dag_filename = f'{main_dir}/{third_dir}.dag'
 
     with open(dag_filename, 'w') as f:
-        f.write("# HTCondor DAG file")
+        f.write("# HTCondor DAG file\n")
 
         f.write(f"JOB nu_sim {nu_sub}\n")
-        f.write(f"VARS nu_sim input={step0_dir} output={nur_dir} step2={sim_script_path} station={station_path} config={nu_config_path} hw_path={hw_path}\n")
+        f.write(f"VARS nu_sim input={neutrino_dir} output_base={main_dir} step2={sim_script_path} station={station_path} config={nu_config_path} hw_path={hw_path}\n")
 
         f.write(f"JOB noise_sim {noise_sub}\n")
-        f.write(f"VARS noise_sim input={step0_dir} output={nur_dir} step2={sim_script_path} station={station_path} config={noise_config_path} hw_path={hw_path}\n")
+        f.write(f"VARS noise_sim input={neutrino_dir} output_base={main_dir} step2={sim_script_path} station={station_path} config={noise_config_path} hw_path={hw_path}\n")
 
-        f.write(f"JOB extract_nu {extract_sub}\n")
-        f.write(f"VARS extract_nu input={nur_dir}/nu/*.nur output={main_dir} out_name=nu_extracted.hdf5 extract_path={extract_script_path} label=1\n")
+        f.write(f"JOB extract_nu {nu_extract_sub}\n")
+        f.write(f"VARS extract_nu input=\"{nu_dir}/*.nur\" output_base={main_dir} extract_path={extract_script_path}\n")
 
-        f.write(f"JOB extract_noise {extract_sub}\n")
-        f.write(f"VARS extract_noise input=\"{nur_dir}/noise/*.nur\" output={main_dir} out_name=noise_extracted.hdf5 extract_path={extract_script_path} label=0\n")
+        f.write(f"JOB extract_noise {noise_extract_sub}\n")
+        f.write(f"VARS extract_noise input=\"{noise_dir}/*.nur\" output_base={main_dir} extract_path={extract_script_path}\n")
 
         f.write("PARENT nu_sim CHILD extract_nu\n")
         f.write("PARENT noise_sim CHILD extract_noise\n")
 
+    print(f'Dag file created. Please submit with condor_submit_dag -F {dag_filename}.')
 if __name__ == "__main__":
     main()

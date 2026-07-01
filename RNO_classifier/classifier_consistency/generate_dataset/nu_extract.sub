@@ -1,0 +1,33 @@
+# ----------------------------------------------------------------------
+# extract.sub
+# ----------------------------------------------------------------------
+universe = vanilla
+# Set to own venv
+executable = /data/condor_shared/users/ssued/mlvenv/bin/python 
+
+# Mimicking Slurm hardware requirements
+request_cpus = 1
+request_memory = 3G
+request_disk = 3G
+
+# ----------------------------------------------------------------------
+# PATH DEFINITIONS
+# ----------------------------------------------------------------------
+IN_DIR = $(input)
+OUT_DIR = $(output)/nu
+
+SCRIPT_PATH = $(extract_path)
+
+# ----------------------------------------------------------------------
+# EXECUTION COMMAND
+# ----------------------------------------------------------------------
+arguments = "$(SCRIPT_PATH) --input $(IN_DIR) --label 1 --out $(OUT_DIR)"
+
+# ----------------------------------------------------------------------
+# HOUSEKEEPING
+# ----------------------------------------------------------------------
+output = $(OUT_DIR)/logs/extract.out
+error  = $(OUT_DIR)/logs/extract.err
+log    = $(OUT_DIR)/logs/extract.log
+
+queue 1
