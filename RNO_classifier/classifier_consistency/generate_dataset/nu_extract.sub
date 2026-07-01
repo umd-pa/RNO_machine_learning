@@ -2,8 +2,8 @@
 # extract.sub
 # ----------------------------------------------------------------------
 universe = vanilla
-# Set to own venv
-executable = /data/condor_shared/users/nmanic/nuradio/myVENV/bin/python3
+VENV = $(venv)
+executable = $(VENV)
 
 # Mimicking Slurm hardware requirements
 request_cpus = 1
