@@ -155,5 +155,5 @@ if __name__ == '__main__':
     run_nu(args.jobs, args.start_index, args.data_dir)
     run_noise(args.jobs, args.start_index, args.data_dir)
     script_dir = Path(__file__).parent.resolve()
-    with open(script_dir / 'user_cfg.yaml', "w", encoding='UTF-8') as f:
+    with open(script_dir / 'user_config.yaml', "w", encoding='UTF-8') as f:
         yaml.dump({'data_dir' : args.data_dir}, f)

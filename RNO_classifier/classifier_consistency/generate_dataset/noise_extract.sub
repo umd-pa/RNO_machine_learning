@@ -3,7 +3,7 @@
 # ----------------------------------------------------------------------
 universe = vanilla
 # Set to own venv
-executable = /data/condor_shared/users/ssued/mlvenv/bin/python 
+executable = /data/condor_shared/users/nmanic/nuradio/myVENV/bin/python3
 
 # Mimicking Slurm hardware requirements
 request_cpus = 1
@@ -13,7 +13,7 @@ request_disk = 3G
 # ----------------------------------------------------------------------
 # PATH DEFINITIONS
 # ----------------------------------------------------------------------
-IN_DIR = $(input)
+IN_DIR = $(in_dir)
 OUT_DIR = $(output)/noise
 
 SCRIPT_PATH = $(extract_path)

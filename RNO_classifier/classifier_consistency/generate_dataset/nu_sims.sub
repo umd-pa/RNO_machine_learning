@@ -2,7 +2,7 @@
 # sims.sub
 # ----------------------------------------------------------------------
 universe = vanilla
-executable = /data/condor_shared/users/ssued/mlvenv/bin/python
+executable = /data/condor_shared/users/nmanic/nuradio/myVENV/bin/python3
 
 # Mimicking Slurm hardware requirements
 request_cpus = 1
@@ -12,7 +12,7 @@ request_disk = 3G
 # ----------------------------------------------------------------------
 # PATH DEFINITIONS
 # ----------------------------------------------------------------------
-IN_DIR = $(input)/nu
+IN_DIR = $(in_dir)/nu
 OUT_DIR = $(output_base)
 
 SCRIPT_PATH = $(step2)
@@ -32,9 +32,9 @@ FILE_ID = $INT(TEMP_ID,%06d)
 # EXECUTION COMMAND
 # ----------------------------------------------------------------------
 # for nu
-arguments = "$(SCRIPT_PATH) $(IN_DIR)/nu_f$(FILE_ID).hdf5 $(STATION_JSON) $(CONFIG_YAML) $(OUT_DIR)/nu_f$(FILE_ID).hdf5 $(OUT_DIR)/nu_f$(FILE_ID).nur --threshold 0.1 --trig_chan 40" --hw_path $(hw_path)
+arguments = "$(SCRIPT_PATH) $(IN_DIR)/nu_f$(FILE_ID).hdf5 $(STATION_JSON) $(CONFIG_YAML) $(OUT_DIR)/nu/nur/nu_f$(FILE_ID).hdf5 $(OUT_DIR)/nu/nur/nu_f$(FILE_ID).nur --threshold 0.1 --trig_chan 40 --hw_path $(hw_path)"
 # for noise
-# arguments = "$(SCRIPT_PATH) $(IN_DIR)/nu_f$(FILE_ID).hdf5 $(STATION_JSON) $(CONFIG_YAML) $(OUT_DIR)/nu/nur/nu_f$(FILE_ID).hdf5 $(OUT_DIR)/nu/nur/nu_f$(FILE_ID).nur --threshold 0.01 --trig_chan 0" --hw_path $(hw_path)
+# arguments = "$(SCRIPT_PATH) $(IN_DIR)/nu_f$(FILE_ID).hdf5 $(STATION_JSON) $(CONFIG_YAML) $(OUT_DIR)/nu/nur/nu_f$(FILE_ID).hdf5 $(OUT_DIR)/nu/nur/nu_f$(FILE_ID).nur --threshold 0.01 --trig_chan 0 --hw_path $(hw_path)"
 # ----------------------------------------------------------------------
 # HOUSEKEEPING
 # ----------------------------------------------------------------------
