@@ -679,6 +679,17 @@ def main():
     torch.save(ckpt, out_dir / "last_model.pt")
     print(f"\nDone. Best val loss: {best_val_loss:.4f}  →  {out_dir}")
 
+    best_ckpt_path = out_dir / 'best_model.pt'
+    latest_ckpt_path = out_dir / 'last_model.pt'
 
+    with open(Path(__file__).parent.parent / 'user_config.yaml', 'r', encoding='utf-8') as f:
+        if best_ckpt_path.is_file():
+            yaml.dump({'best_model_ckpt' : best_ckpt_path},    f)
+        elif latest_ckpt_path.is_file():
+            yaml.dump({'last_model_ckpt' : latest_ckpt_path},    f)
+        else:
+            raise FileNotFoundError('Could not find model checkpoint to save!')
+        
 if __name__ == "__main__":
     main()
+        
