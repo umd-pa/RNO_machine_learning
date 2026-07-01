@@ -9,9 +9,12 @@ Usage:
         --noise      noise.h5  \
         [--target-fpr 1e-5] \
         [--out        runs/exp01/eval]
+        [--compare] 
 
 The --signal / --noise files and --val-frac / --seed must match what was used
 in step2_train.py (defaults are identical, so you only need to change them if you did).
+Pass --compare if you want to evaluate the contents of new signal and noise files instead of val-split indices saved in the checkpoint.
+--compare necessary for evaluating model on different dataset than what it was trained on.
 
 Outputs (inside --out):
     roc_curve.png           — ROC with operating point marked
@@ -324,6 +327,7 @@ def parse_args():
     p.add_argument("--target-fpr", type=float, default=1e-3)
     p.add_argument("--out",        default=None)
     p.add_argument("--batch-size", type=int,   default=512)
+    p.add_argument("--compare", required=False, action="store_true")
     return p.parse_args()
 
 
@@ -355,6 +359,14 @@ def main():
         )
     sig_val_idx = ckpt["sig_val_idx"]
     noi_val_idx = ckpt["noi_val_idx"]
+
+    if args.compare:
+        with h5py.File(args.signal, "r") as f:
+            sig_val_idx = np.arange(f["waveforms"].shape[0])
+        with h5py.File(args.noise,  "r") as f:
+            noi_val_idx = np.arange(f["waveforms"].shape[0])
+        print(f"Comparison mode: using all {len(sig_val_idx)} signal "
+              f"and {len(noi_val_idx)} noise events")
 
     crop = cfg.get("crop_samples", None)
     val_ds = ConcatDataset([
