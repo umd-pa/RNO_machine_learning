@@ -1,5 +1,5 @@
 """
-Stage 2: Train a multi-channel 1D CNN on signal and noise HDF5 datasets.
+Modified train.py with benchmark defaults: Train a multi-channel 1D CNN on signal and noise HDF5 datasets.
 
 Usage:
     python step2_train.py \
@@ -44,6 +44,7 @@ To add a new architecture, define a class and add it to ARCH_REGISTRY.
 """
 
 import argparse
+import yaml
 import csv
 import json
 import os
@@ -498,11 +499,18 @@ def update_plot(csv_path, png_path):
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
+def check_yaml():
+    proj_dir = Path(__file__).resolve().parent.parent
+    yaml_path = proj_dir / 'user_config.yaml'
+    with open(yaml_path, 'r', encoding='utf-8') as f:
+        yaml_content = yaml.safe_load(f)
+        return yaml_content
+
 def parse_args():
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--signal",       required=True, help="Signal HDF5 from extract.py")
-    p.add_argument("--noise",        required=True, help="Noise  HDF5 from extract.py")
+    p.add_argument("--signal",       default=None, help="Signal HDF5 from extract.py")
+    p.add_argument("--noise",        default=None, help="Noise  HDF5 from extract.py")
     p.add_argument("--out",          default="runs/exp01", help="Output directory")
     p.add_argument("--arch",         default="baseline",
                    choices=list(ARCH_REGISTRY),
@@ -526,6 +534,26 @@ def parse_args():
 
 def main():
     args = parse_args()
+    benchmark_path = None
+    if args.signal is None or args.noise is None:
+        data_dir = Path(check_yaml()['data_dir'])
+
+        # Find only the very first matching directory
+        benchmark_dir = next((p for p in data_dir.rglob("benchmark") if p.is_dir()), None)
+
+        # Print the result
+        if benchmark_dir:
+            print(f"Found benchmark directory at: {benchmark_dir}")
+            benchmark_path = benchmark_dir.resolve()
+        else:
+            raise Exception('Could not find benchmark directory')
+        if args.signal is None:
+            args.signal = str(benchmark_path / 'nu' / 'nur' / '*.nur')
+        if args.noise is None:
+            args.noise = str(benchmark_path / 'noise' / 'nur' / '*.nur')
+        if args.out == 'runs/exp01':
+            args.out = str(benchmark_path / 'runs' / 'exp01')
+
     rng  = np.random.default_rng(args.seed)
     torch.manual_seed(args.seed)
 

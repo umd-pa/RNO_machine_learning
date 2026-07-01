@@ -23,7 +23,7 @@ def main():
     # --- argparsing ---------------
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--venv_path", required=True, help="path to user's venv file")
+    p.add_argument("--python_path", default=None, help="path to user's python interpreter")
     p.add_argument("--ice_model", choices=["greenland_simple_plus_nsigma", "greenland_simple_minus_nsigma", "greenland_simple_plus_z0sigma", "greenland_simple_minus_z0sigma", 
                                            "greenland_simple"], default="greenland_simple", required=False, help="Set of ice parameters to be used during simulation")
     p.add_argument("--signal_model", default="ARZ2020", required=False, help="Askaryan pulse model to be used during simulation")
@@ -39,9 +39,16 @@ def main():
         except Exception as e:
             p.error(f'Failed to load default data_dir from Yaml: {e}')
     else:
-        data_dir = args.data_dir
+        data_dir = os.path.abspath(args.data_dir)
 
-    data_dir = os.path.abspath(data_dir)
+    if args.python_path is None:
+        try:
+            data_dir = check_yaml()['python_path']
+            data_dir = check_yaml()['data_dir']
+        except Exception as e:
+            p.error(f'Failed to load default data_dir from Yaml: {e}')
+    else:
+        python_path = os.path.abspath(args.python_path)
 
     sim_params = ["ice_model", "signal_model", "att_model", "hw_resp"]
     is_benchmark = all(getattr(args, param) == p.get_default(param) for param in sim_params)
@@ -158,16 +165,16 @@ def main():
         f.write("# HTCondor DAG file\n")
 
         f.write(f"JOB nu_sim {nu_sub}\n")
-        f.write(f'VARS nu_sim in_dir="{neutrino_dir}" output_base="{main_dir}" venv="{args.venv_path}" step2="{sim_script_path}" station="{station_path}" config="{nu_config_path}" hw_path="{hw_path}"\n')
+        f.write(f'VARS nu_sim in_dir="{neutrino_dir}" output_base="{main_dir}" venv="{args.python_path}" step2="{sim_script_path}" station="{station_path}" config="{nu_config_path}" hw_path="{hw_path}"\n')
 
         f.write(f"JOB noise_sim {noise_sub}\n")
-        f.write(f'VARS noise_sim in_dir="{neutrino_dir}" output_base="{main_dir}" venv="{args.venv_path}" step2="{sim_script_path}" station="{station_path}" config="{noise_config_path}" hw_path="{hw_path}"\n')
+        f.write(f'VARS noise_sim in_dir="{neutrino_dir}" output_base="{main_dir}" venv="{args.python_path}" step2="{sim_script_path}" station="{station_path}" config="{noise_config_path}" hw_path="{hw_path}"\n')
 
         f.write(f"JOB extract_nu {nu_extract_sub}\n")
-        f.write(f'VARS extract_nu in_dir=\"{nu_dir}/*.nur\" output_base="{main_dir}" venv="{args.venv_path}" extract_path="{extract_script_path}"\n')
+        f.write(f'VARS extract_nu in_dir=\"{nu_dir}/*.nur\" output_base="{main_dir}" venv="{args.python_path}" extract_path="{extract_script_path}"\n')
 
         f.write(f"JOB extract_noise {noise_extract_sub}\n")
-        f.write(f'VARS extract_noise in_dir=\"{noise_dir}/*.nur\" output_base="{main_dir}" venv="{args.venv_path}" extract_path="{extract_script_path}"\n')
+        f.write(f'VARS extract_noise in_dir=\"{noise_dir}/*.nur\" output_base="{main_dir}" venv="{args.python_path}" extract_path="{extract_script_path}"\n')
 
         f.write("PARENT nu_sim CHILD extract_nu\n")
         f.write("PARENT noise_sim CHILD extract_noise\n")

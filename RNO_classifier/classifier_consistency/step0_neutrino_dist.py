@@ -11,6 +11,7 @@ Modes:
 from __future__ import absolute_import, division, print_function
 import argparse
 import yaml
+import sys
 import os
 from pathlib import Path
 from multiprocessing import Pool
@@ -156,4 +157,6 @@ if __name__ == '__main__':
     run_noise(args.jobs, args.start_index, args.data_dir)
     script_dir = Path(__file__).parent.resolve()
     with open(script_dir / 'user_config.yaml', "w", encoding='UTF-8') as f:
-        yaml.dump({'data_dir' : args.data_dir}, f)
+        f.write('# Please indicate where you want your data directory to be stored and your python path\n')
+        yaml.dump({'data_dir' : args.data_dir},    f)
+        yaml.dump({'python_path': sys.executable}, f)
