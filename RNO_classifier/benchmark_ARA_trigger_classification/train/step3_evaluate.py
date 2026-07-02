@@ -290,7 +290,10 @@ def plot_efficiency_vs_snr(scores, labels, snr_per_event, threshold, path, trigg
     ax.legend(lines1 + lines2, labs1 + labs2, loc='upper left', fontsize=8)
 
     fig.tight_layout(); fig.savefig(path, dpi=150); plt.close(fig)
-    print(f"Saved: {path}")
+
+    # Interpolate values to get 50% efficiency SNR
+    snr_at_50 = np.interp(.5, effs[valid], centres[valid])
+    print(f"Saved: {path} with SNR = {snr_at_50} for 50% efficiency")
 
 
 def print_summary(threshold, fpr, tpr, roc_auc, target_fpr, path):

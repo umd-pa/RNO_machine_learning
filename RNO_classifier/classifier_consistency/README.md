@@ -21,14 +21,14 @@ Generate the neutrinos used for all subsequent simulations. These remain static 
 - This script creates a `classifier_consistency/` subdirectory and generates a `user_config.yaml` file containing your `data_dir` and `python_path`.
 
 ### Step 1.1: Benchmark Data Generation
-`python step1_benchmark_model/step1.1_generate_benchmark.sh`
+`bash step1_benchmark_model/step1.1_generate_benchmark.sh`
 
 This script generates the Dagman file required for large-scale data production.
 - **Submission**: Once generated, submit using: `condor_submit_dag [path_to_dag]`
 - **Output**: Upon completion, `nu_extracted.hdf5` and `noise_extracted.hdf5` will be available in `data_dir/classifier_consistency/ARZ2020/benchmark`.
 
 ### Step 1.2: Benchmark Training
-`python step1_benchmark_model/step1.2_train_benchmark.sh`
+`bash step1_benchmark_model/step1.2_train_benchmark.sh`
 
 Train the classifier on the prepared data. Metrics are saved in `data_dir/classifier_consistency/ARZ2020/benchmark/runs`.
 

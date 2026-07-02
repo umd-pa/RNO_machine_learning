@@ -512,12 +512,12 @@ def parse_args():
     p.add_argument("--signal",       default=None, help="Signal HDF5 from extract.py")
     p.add_argument("--noise",        default=None, help="Noise  HDF5 from extract.py")
     p.add_argument("--out",          default="runs/exp01", help="Output directory")
-    p.add_argument("--arch",         default="baseline",
+    p.add_argument("--arch",         default="resnet+",
                    choices=list(ARCH_REGISTRY),
                    help=f"Model architecture: {list(ARCH_REGISTRY)}")
     p.add_argument("--crop-samples", type=int, default=None,
                    help="Centre-crop traces to N samples (default: full trace)")
-    p.add_argument("--epochs",       type=int,   default=50)
+    p.add_argument("--epochs",       type=int,   default=100)
     p.add_argument("--batch-size",   type=int,   default=256)
     p.add_argument("--lr",           type=float, default=3e-4)
     p.add_argument("--val-frac",     type=float, default=0.15)
@@ -548,9 +548,9 @@ def main():
         else:
             raise Exception('Could not find benchmark directory')
         if args.signal is None:
-            args.signal = str(benchmark_path / 'nu' / 'nur' / '*.nur')
+            args.signal = str(benchmark_path / 'nu' / 'nu_extracted.hdf5')
         if args.noise is None:
-            args.noise = str(benchmark_path / 'noise' / 'nur' / '*.nur')
+            args.noise = str(benchmark_path / 'noise' / 'noise_extracted.hdf5')
         if args.out == 'runs/exp01':
             args.out = str(benchmark_path / 'runs' / 'exp01')
 
@@ -682,11 +682,11 @@ def main():
     best_ckpt_path = out_dir / 'best_model.pt'
     latest_ckpt_path = out_dir / 'last_model.pt'
 
-    with open(Path(__file__).parent.parent / 'user_config.yaml', 'r', encoding='utf-8') as f:
+    with open(Path(__file__).parent.parent / 'user_config.yaml', 'a', encoding='utf-8') as f:
         if best_ckpt_path.is_file():
-            yaml.dump({'best_model_ckpt' : best_ckpt_path},    f)
+            yaml.dump({'best_model_ckpt' : str(best_ckpt_path)},    f)
         elif latest_ckpt_path.is_file():
-            yaml.dump({'last_model_ckpt' : latest_ckpt_path},    f)
+            yaml.dump({'last_model_ckpt' : str(latest_ckpt_path)},    f)
         else:
             raise FileNotFoundError('Could not find model checkpoint to save!')
         

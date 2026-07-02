@@ -59,7 +59,7 @@ NU_CONFIG = dict(
 NOISE_CONFIG = dict(
     r_km     = 0.1,
     n_files  = 100,
-    n_events = 4_000,
+    n_events = 13_000,
 )
 
 # ── Shared geometry ───────────────────────────────────────────────────────────

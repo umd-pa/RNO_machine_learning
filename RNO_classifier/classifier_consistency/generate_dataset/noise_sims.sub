@@ -14,7 +14,7 @@ request_disk = 3G
 # PATH DEFINITIONS
 # ----------------------------------------------------------------------
 IN_DIR = $(in_dir)/noise
-OUT_DIR = $(output_base)
+OUT_DIR = $(output_main)
 
 SCRIPT_PATH = $(step2)
 HW_PATH = $(hw_path)

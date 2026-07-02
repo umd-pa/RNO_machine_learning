@@ -1,10 +1,10 @@
 """
-Stage 1: Extract raw waveforms from one or more .nur files into a single HDF5 file.
+Stage 1: Extract raw waveforms from one or more .nur files in a directory into a single HDF5 file.
 
 Run once for signal, once for noise. If you want typical amplification (x1500) use:
 
-    python extract.py --input signal1.nur signal2.nur --label 1 --hw-resp SCALE --out signal.h5
-    python extract.py --input noise1.nur noise2.nur   --label 0 --hw-resp SCALE --out noise.h5
+    python extract.py --input_dir /path/to/nur --label 1 --hw-resp SCALE --out signal.h5
+    python extract.py --input_dir /path/to/nur   --label 0 --hw-resp SCALE --out noise.h5
 
 --hw-resp options are:
     APPLY: Apply full hardware response simulation (not functional with custom detectors, but will work with RNO-G single station!)
@@ -33,6 +33,8 @@ import argparse
 import sys
 import warnings
 from pathlib import Path
+import glob
+import os
 
 import h5py
 import numpy as np
@@ -237,9 +239,10 @@ def count_valid_events(nur_paths: list[str], trigger: str | None) -> tuple[int, 
         gc.collect()
     return total, T
 
-# ── writer & appender ────────────────────────────────────────────────────────────────────
+# ── writer  ────────────────────────────────────────────────────────────────────
 
 def write_hdf5(nur_paths: list[str], label: int, out_path: str, hw_resp: HardwareResponse = HardwareResponse.NONE, trigger: str | None = None):
+    # 1. Pre-scan all files to determine total shape upfront
     n, T = count_valid_events(nur_paths, trigger)
     if n == 0:
         sys.exit("ERROR: no valid events found.")
@@ -248,6 +251,7 @@ def write_hdf5(nur_paths: list[str], label: int, out_path: str, hw_resp: Hardwar
     chunk_size = min(256, n)
 
     with h5py.File(out_path, "w") as f:
+        # Create datasets using the complete total 'n'
         ds_wav = f.create_dataset("waveforms", shape=(n, 4, T), dtype=np.float32,
                                   maxshape=(None, 4, T), chunks=(chunk_size, 4, T))
         ds_lbl = f.create_dataset("labels", shape=(n,), dtype=np.int8,
@@ -266,16 +270,15 @@ def write_hdf5(nur_paths: list[str], label: int, out_path: str, hw_resp: Hardwar
 
         f.attrs["label"]     = label
         f.attrs["trace_len"] = T
-        f.attrs["n_events"]  = n
 
         i = 0
         buffer = []
         
+        # Loop over every single file sequentially
         for path in nur_paths:
             for ev in tqdm(iter_events(path, label, hw_resp=hw_resp, trigger=trigger), desc=Path(path).name):
                 buffer.append(ev)
                 
-                # Write to disk only when the buffer matches our chunk size
                 if len(buffer) >= chunk_size:
                     num = len(buffer)
                     ds_wav[i : i + num] = np.stack([e["waveform"] for e in buffer])
@@ -289,7 +292,6 @@ def write_hdf5(nur_paths: list[str], label: int, out_path: str, hw_resp: Hardwar
                     i += num
                     buffer.clear()
             
-            # Flush remaining events for the current file if any exist
             if buffer:
                 num = len(buffer)
                 ds_wav[i : i + num] = np.stack([e["waveform"] for e in buffer])
@@ -305,74 +307,28 @@ def write_hdf5(nur_paths: list[str], label: int, out_path: str, hw_resp: Hardwar
                 
             gc.collect()
 
-    print(f"Saved {n} events → {out_path}")
-
-
-def append_hdf5(nur_paths: list[str], label: int, out_path: str, hw_resp: HardwareResponse = HardwareResponse.NONE, trigger: str | None = None):
-    n, T = count_valid_events(nur_paths, trigger)
-    if n == 0:
-        sys.exit("ERROR: no valid events found.")
-    print(f"Total events: {n}   Trace length: {T} samples")
-
-    with h5py.File(out_path, "a") as f:
-        
-        i = int(f.attrs["n_events"])
-        T = int(f.attrs["trace_len"])
-
-        f["waveforms"].resize((i + n, 4, T))
-        f["labels"].resize((i + n,))
-        f["snr"].resize((i + n, 4))
-        f["energy"].resize((i + n,))
-        f["vertex"].resize((i + n, 3))
-        f["weight"].resize((i + n,))
-        if trigger:
-            f["triggered"].resize((i + n,))
-        
-        # Determine chunk size from the existing dataset configuration
-        chunk_size = f["waveforms"].chunks[0] if f["waveforms"].chunks else 256
-        buffer = []
-        
-        for path in nur_paths:
-            for ev in tqdm(iter_events(path, label, hw_resp=hw_resp, trigger=trigger), desc=Path(path).name):
-                buffer.append(ev)
-                
-                if len(buffer) >= chunk_size:
-                    num = len(buffer)
-                    f["waveforms"][i : i + num] = np.stack([e["waveform"] for e in buffer])
-                    f["labels"][i : i + num]    = [e["label"] for e in buffer]
-                    f["snr"][i : i + num]       = np.stack([e["snr"] for e in buffer])
-                    f["energy"][i : i + num]    = [e["energy"] for e in buffer]
-                    f["vertex"][i : i + num]    = np.stack([e["vertex"] for e in buffer])
-                    f["weight"][i : i + num]    = [e["weight"] for e in buffer]
-                    if trigger:
-                        f["triggered"][i : i + num] = [e["triggered"] for e in buffer]
-                    i += num
-                    buffer.clear()
-            
-            # Flush remaining events for the current file if any exist
-            if buffer:
-                num = len(buffer)
-                f["waveforms"][i : i + num] = np.stack([e["waveform"] for e in buffer])
-                f["labels"][i : i + num]    = [e["label"] for e in buffer]
-                f["snr"][i : i + num]       = np.stack([e["snr"] for e in buffer])
-                f["energy"][i : i + num]    = [e["energy"] for e in buffer]
-                f["vertex"][i : i + num]    = np.stack([e["vertex"] for e in buffer])
-                f["weight"][i : i + num]    = [e["weight"] for e in buffer]
-                if trigger:
-                    f["triggered"][i : i + num] = [e["triggered"] for e in buffer]
-                i += num
-                buffer.clear()
-                
-            gc.collect()
+        # Dynamic cleanup: If any event warnings skipped records, shrink datasets to match exactly what was written
+        if i < n:
+            ds_wav.resize((i, 4, T))
+            ds_lbl.resize((i,))
+            ds_snr.resize((i, 4))
+            ds_nrg.resize((i,))
+            ds_vtx.resize((i, 3))
+            ds_wgt.resize((i,))
+            if trigger is not None:
+                ds_trg.resize((i,))
 
         f.attrs["n_events"] = i
+
+    print(f"Saved {i} total events → {out_path}")
+
 
 # ── CLI ───────────────────────────────────────────────────────────────────────
 
 def main():
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--input", required=True, nargs="+", help=".nur file(s) to extract")
+    p.add_argument("--input_dir", required=True, help="directory with .nur file(s) to extract")
     p.add_argument("--label", required=True, type=int, choices=[0, 1],
                    help="1 = signal, 0 = noise")
     p.add_argument("--hw-resp", choices=[m.name for m in HardwareResponse], default="NONE", help="Hardware response mode (default: NONE)")
@@ -380,19 +336,21 @@ def main():
     p.add_argument("--out",   required=True, help="Output HDF5 path")
     args = p.parse_args()
 
-    missing = [f for f in args.input if not Path(f).exists()]
-    if missing:
-        sys.exit(f"ERROR: file(s) not found: {', '.join(missing)}")
+    if os.path.isdir(args.input_dir):
+        input_files = glob.glob(os.path.join(args.input_dir, "*.nur"))
+    else:
+        sys.exit(f"ERROR: Directory not found or is not a valid directory: {args.input_dir}")
 
+    if not input_files:
+        sys.exit(f"ERROR: No .nur files found in input directory {args.input_dir}")
+    
     if args.trigger is not None and args.trigger.strip().upper() == 'NONE':
         args.trigger = None
 
     hw_resp = HardwareResponse[args.hw_resp]
     print(args.trigger)
-    write_hdf5([args.input[0]], args.label, args.out, hw_resp=hw_resp, trigger=args.trigger)
-    if len(args.input) > 1:
-        append_hdf5(args.input[1:], args.label, args.out, hw_resp=hw_resp, trigger=args.trigger)
-
+    input_files.sort()
+    write_hdf5(input_files, args.label, args.out, hw_resp=hw_resp, trigger=args.trigger)
 
 if __name__ == "__main__":
     main()

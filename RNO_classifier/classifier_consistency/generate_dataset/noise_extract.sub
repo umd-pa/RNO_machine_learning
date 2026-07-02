@@ -14,14 +14,14 @@ request_disk = 3G
 # PATH DEFINITIONS
 # ----------------------------------------------------------------------
 IN_DIR = $(in_dir)
-OUT_DIR = $(output)/noise
+OUT_DIR = $(output_main)/noise
 
 SCRIPT_PATH = $(extract_path)
 
 # ----------------------------------------------------------------------
 # EXECUTION COMMAND
 # ----------------------------------------------------------------------
-arguments = "$(SCRIPT_PATH) --input $(IN_DIR) --label 0 --out $(OUT_DIR)"
+arguments = "$(SCRIPT_PATH) --input_dir $(IN_DIR) --label 0 --out $(OUT_DIR)/noise_extracted.hdf5"
 
 # ----------------------------------------------------------------------
 # HOUSEKEEPING

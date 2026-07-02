@@ -14,14 +14,14 @@ request_disk = 3G
 # PATH DEFINITIONS
 # ----------------------------------------------------------------------
 IN_DIR = $(in_dir)
-OUT_DIR = $(output)/nu
+OUT_DIR = $(output_main)/nu
 
 SCRIPT_PATH = $(extract_path)
 
 # ----------------------------------------------------------------------
 # EXECUTION COMMAND
 # ----------------------------------------------------------------------
-arguments = "$(SCRIPT_PATH) --input $(IN_DIR) --label 1 --out $(OUT_DIR)"
+arguments = "$(SCRIPT_PATH) --input_dir $(IN_DIR) --label 1 --out $(OUT_DIR)/nu_extracted.hdf5"
 
 # ----------------------------------------------------------------------
 # HOUSEKEEPING

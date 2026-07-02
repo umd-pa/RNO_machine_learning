@@ -43,8 +43,7 @@ def main():
 
     if args.python_path is None:
         try:
-            data_dir = check_yaml()['python_path']
-            data_dir = check_yaml()['data_dir']
+            python_path = check_yaml()['python_path']
         except Exception as e:
             p.error(f'Failed to load default data_dir from Yaml: {e}')
     else:
@@ -65,18 +64,18 @@ def main():
             multiple_changed_params=True
 
     # --- directory setup ---------------
+    signal_model_dir = f"{data_dir}/{args.signal_model}"
     if is_benchmark:
-        main_dir = f"{data_dir}/{args.signal_model}/benchmark"
+        main_dir = f"{signal_model_dir}/benchmark"
     elif multiple_changed_params:
-        main_dir = f"{data_dir}/{args.signal_model}/other/{args.ice_model}-{args.att_model}-{args.hw_resp}"
+        main_dir = f"{signal_model_dir}/other/{args.ice_model}-{args.att_model}-{args.hw_resp}"
     else:
-        main_dir = f"{data_dir}/{args.signal_model}/{sec_dir}/{third_dir}"
+        main_dir = f"{signal_model_dir}/{sec_dir}/{third_dir}"
 
     nu_dir = f'{main_dir}/nu/nur'
     noise_dir = f'{main_dir}/noise/nur'
     nu_logs_dir = f'{main_dir}/nu/logs'
     noise_logs_dir = f'{main_dir}/noise/logs'
-    Path(main_dir).mkdir(parents=True, exist_ok=True)
     Path(nu_dir).mkdir(parents=True, exist_ok=True)
     Path(noise_dir).mkdir(parents=True, exist_ok=True)
     Path(nu_logs_dir).mkdir(parents=True, exist_ok=True)
@@ -165,16 +164,16 @@ def main():
         f.write("# HTCondor DAG file\n")
 
         f.write(f"JOB nu_sim {nu_sub}\n")
-        f.write(f'VARS nu_sim in_dir="{neutrino_dir}" output_base="{main_dir}" venv="{args.python_path}" step2="{sim_script_path}" station="{station_path}" config="{nu_config_path}" hw_path="{hw_path}"\n')
+        f.write(f'VARS nu_sim in_dir="{neutrino_dir}" output_main="{main_dir}" venv="{python_path}" step2="{sim_script_path}" station="{station_path}" config="{nu_config_path}" hw_path="{hw_path}"\n')
 
         f.write(f"JOB noise_sim {noise_sub}\n")
-        f.write(f'VARS noise_sim in_dir="{neutrino_dir}" output_base="{main_dir}" venv="{args.python_path}" step2="{sim_script_path}" station="{station_path}" config="{noise_config_path}" hw_path="{hw_path}"\n')
+        f.write(f'VARS noise_sim in_dir="{neutrino_dir}" output_main="{main_dir}" venv="{python_path}" step2="{sim_script_path}" station="{station_path}" config="{noise_config_path}" hw_path="{hw_path}"\n')
 
         f.write(f"JOB extract_nu {nu_extract_sub}\n")
-        f.write(f'VARS extract_nu in_dir=\"{nu_dir}/*.nur\" output_base="{main_dir}" venv="{args.python_path}" extract_path="{extract_script_path}"\n')
+        f.write(f'VARS extract_nu in_dir="{nu_dir}" output_main="{main_dir}" venv="{python_path}" extract_path="{extract_script_path}"\n')
 
         f.write(f"JOB extract_noise {noise_extract_sub}\n")
-        f.write(f'VARS extract_noise in_dir=\"{noise_dir}/*.nur\" output_base="{main_dir}" venv="{args.python_path}" extract_path="{extract_script_path}"\n')
+        f.write(f'VARS extract_noise in_dir="{noise_dir}" output_main="{main_dir}" venv="{python_path}" extract_path="{extract_script_path}"\n')
 
         f.write("PARENT nu_sim CHILD extract_nu\n")
         f.write("PARENT noise_sim CHILD extract_noise\n")
