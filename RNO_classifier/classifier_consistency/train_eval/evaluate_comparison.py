@@ -51,7 +51,7 @@ except ImportError:
 
 # Reuse model definition and dataset from step2_train.py
 try:
-    from step2_train import ARCH_REGISTRY, WaveformDataset
+    from train_benchmark import ARCH_REGISTRY, WaveformDataset
 except ImportError:
     sys.exit("ERROR: could not import from step2_train.py. Run from the same directory.")
 

@@ -1,7 +1,7 @@
 # Get DIRECTORY of absolute path of current bash script
 DIR_NAME=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # Get Path to training script from current path
-TRAINING_SCRIPT_PATH="${DIR_NAME}/train_benchmark.py"
+TRAINING_SCRIPT_PATH="${DIR_NAME}/../train_eval/train_benchmark.py"
 # Run training script
 echo "Tip: Run this script with '--help' to see all available options."
 echo "------------------------------------------------------------"
