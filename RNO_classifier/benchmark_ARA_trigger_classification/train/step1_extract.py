@@ -3,17 +3,17 @@ Stage 1: Extract raw waveforms from one or more .nur files into a single HDF5 fi
 
 Run once for signal, once for noise. If you want typical amplification (x1500) use:
 
-    python extract.py --input signal1.nur signal2.nur --label 1 --hw-resp SCALE --out signal.h5
-    python extract.py --input noise1.nur noise2.nur   --label 0 --hw-resp SCALE --out noise.h5
+    python extract.py --input signal1.nur signal2.nur --label 1 --hw_resp SCALE --out signal.h5
+    python extract.py --input noise1.nur noise2.nur   --label 0 --hw_resp SCALE --out noise.h5
 
---hw-resp options are:
+--hw_resp options are:
     APPLY: Apply full hardware response simulation (not functional with custom detectors, but will work with RNO-G single station!)
     SCALE: Simply amplify signal by 1500
     NONE: Do not apply any gain/hardware amp. It is assumed it was already applied during simulation
 
 --trigger:
-    Define which trigger (defined during simulation) to test if it triggered during simulation. 
-    Default is 'rnog_proxy_3.5sigma'. Type "None" if this is not desired
+    Define which trigger (defined during simulation) to test if it triggered during simulation.
+    Default is rnog_phased_array_1.7Hz, but you may pass 'None' if not required to save a small amount of memory.
 
 Output HDF5 layout:
     /waveforms   float32  (N, 4, T)  — raw voltage traces, channels 0–3
@@ -375,8 +375,8 @@ def main():
     p.add_argument("--input", required=True, nargs="+", help=".nur file(s) to extract")
     p.add_argument("--label", required=True, type=int, choices=[0, 1],
                    help="1 = signal, 0 = noise")
-    p.add_argument("--hw-resp", choices=[m.name for m in HardwareResponse], default="NONE", help="Hardware response mode (default: NONE)")
-    p.add_argument("--trigger", required=True, help="Name of the simulated trigger to run (e.g., 'rnog_proxy_3.5sigma' or 'None'). Saves a 1 if the trigger fires, or a 0 if it does not.")
+    p.add_argument("--hw_resp", choices=[m.name for m in HardwareResponse], default="NONE", help="Hardware response mode (default: NONE)")
+    p.add_argument("--trigger", default='rnog_phased_array_1.7Hz', help="Name of the simulated trigger to run (e.g., 'rnog_phased_array_1.7Hz' or 'None'). Saves a 1 if the trigger fires, or a 0 if it does not.")
     p.add_argument("--out",   required=True, help="Output HDF5 path")
     args = p.parse_args()
 

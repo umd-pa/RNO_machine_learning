@@ -7,12 +7,12 @@ Usage:
         --noise  noise.h5  \
         --out    runs/exp01 \
         [--arch  tiny]          \
-        [--crop-samples 512]    \
+        [--crop_samples 512]    \
         [--epochs 50]           \
-        [--batch-size 256]      \
+        [--batch_size 256]      \
         [--lr 1e-3]             \
         [--dropout 0.2]         \
-        [--weight-decay 1e-4]   \
+        [--weight_decay 1e-4]   \
         [--val-frac 0.15]       \
         [--seed 42]
 
@@ -510,15 +510,15 @@ def parse_args():
     p.add_argument("--crop-samples", type=int, default=None,
                    help="Centre-crop traces to N samples (default: full trace)")
     p.add_argument("--epochs",       type=int,   default=50)
-    p.add_argument("--batch-size",   type=int,   default=256)
+    p.add_argument("--batch_size",   type=int,   default=256)
     p.add_argument("--lr",           type=float, default=3e-4)
-    p.add_argument("--val-frac",     type=float, default=0.15)
+    p.add_argument("--val_frac",     type=float, default=0.15)
     p.add_argument("--workers",      type=int,   default=None,
                    help="DataLoader worker processes (default: min(8, cpu_count))")
     p.add_argument("--seed",         type=int,   default=42)
     p.add_argument("--dropout",      type=float, default=0.2,
                    help="Dropout rate (default: 0.2)")
-    p.add_argument("--weight-decay", type=float, default=1e-4)
+    p.add_argument("--weight_decay", type=float, default=1e-4)
     p.add_argument("--resume", type=str, default=None,
                help="Path to checkpoint to resume from")
     return p.parse_args()

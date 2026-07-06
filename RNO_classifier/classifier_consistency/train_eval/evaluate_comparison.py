@@ -7,8 +7,9 @@ Usage:
         --checkpoint runs/exp01/best_model.pt \
         --signal     signal.h5 \
         --noise      noise.h5  \
-        [--target-fpr 1e-5] \
-        [--out        runs/exp01/eval]
+        [--target_fpr 1e-5] \
+        [--out        runs/exp01/eval]  \
+        [--batch_size 512]  \
         [--compare] 
 
 The --signal / --noise files and --val-frac / --seed must match what was used
@@ -199,6 +200,8 @@ def plot_efficiency_vs_snr(scores, labels, snr_per_event, threshold, path, trigg
     sig_scores = scores[sig_mask]
     sig_trigger_scores = trigger_scores[sig_mask] if trigger_scores is not None else None
     sig_snr    = snr_per_event[sig_mask]
+    dataset=Path(path).name
+    path = path/"efficiency_vs_snr.png"
     if not np.any(sig_snr > 0):
         print("WARNING: no positive signal SNR values — skipping efficiency plot.")
         return
@@ -274,7 +277,7 @@ def plot_efficiency_vs_snr(scores, labels, snr_per_event, threshold, path, trigg
     ax.text(snr_max + 0.05, 0.05, "overflow", fontsize=8, color="gray")
     ax.set(xlabel="Max-channel SNR  (V$_{p2p}$ / 2σ$_{noise}$)",
            ylabel="Signal Efficiency",
-           title=f"Efficiency vs SNR  (threshold={threshold:.4f})",
+           title=f"{dataset} - Efficiency vs SNR (thresh={threshold:.4f})",
            xlim=(0, snr_max * 1.15), ylim=(-0.05, 1.05))
     ax.grid(True, alpha=0.3)
 
@@ -292,8 +295,12 @@ def plot_efficiency_vs_snr(scores, labels, snr_per_event, threshold, path, trigg
     fig.tight_layout(); fig.savefig(path, dpi=150); plt.close(fig)
     print(f"Saved: {path}")
 
+     # Interpolate values to get 50% efficiency SNR
+    snr_at_50 = np.interp(.5, effs[valid], centres[valid])
+    return(snr_at_50)
 
-def print_summary(threshold, fpr, tpr, roc_auc, target_fpr, path):
+
+def print_summary(threshold, fpr, tpr, roc_auc, snr50, target_fpr, path):
     lines = [
         "",
         "=" * 55,
@@ -303,6 +310,7 @@ def print_summary(threshold, fpr, tpr, roc_auc, target_fpr, path):
         f"  Target FPR                  : {target_fpr:.2e}",
         "  " + "─" * 43,
         f"  Threshold (CNN score)       : {threshold:.6f}",
+        f"  SNR at 50% Efficiency       : {snr50:.4f}",
         f"  False Positive Rate (FPR)   : {fpr:.4e}",
         f"  True Positive Rate (TPR)    : {tpr:.4f}",
         f"  Signal Efficiency           : {tpr * 100:.2f} %",
@@ -324,9 +332,9 @@ def parse_args():
     p.add_argument("--checkpoint", required=True)
     p.add_argument("--signal",     required=True, help="Signal HDF5 from extract.py")
     p.add_argument("--noise",      required=True, help="Noise  HDF5 from extract.py")
-    p.add_argument("--target-fpr", type=float, default=1e-3)
+    p.add_argument("--target_fpr", type=float, default=1e-3)
     p.add_argument("--out",        default=None)
-    p.add_argument("--batch-size", type=int,   default=512)
+    p.add_argument("--batch_size", type=int,   default=512)
     p.add_argument("--compare", required=False, action="store_true")
     return p.parse_args()
 
@@ -437,9 +445,9 @@ def main():
                          out_dir / "score_histogram.png")
     plot_confusion(val_labels.astype(int), (scores >= threshold).astype(int),
                    out_dir / "confusion_matrix.png")
-    plot_efficiency_vs_snr(scores, val_labels, snr_per_event,
-                           threshold, out_dir / "efficiency_vs_snr.png", trigger_scores=trigger_scores_val)
-    print_summary(threshold, op_fpr, op_tpr, roc_auc,
+    snr_at_50 = plot_efficiency_vs_snr(scores, val_labels, snr_per_event,
+                           threshold, out_dir, trigger_scores=trigger_scores_val)
+    print_summary(threshold, op_fpr, op_tpr, roc_auc, snr_at_50,
                   args.target_fpr, out_dir / "summary.txt")
 
     print(f"\nAll outputs → {out_dir}")
