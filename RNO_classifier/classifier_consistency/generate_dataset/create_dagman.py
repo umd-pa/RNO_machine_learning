@@ -64,7 +64,7 @@ def main():
             multiple_changed_params=True
 
     # --- directory setup ---------------
-    signal_model_dir = f"{data_dir}/{args.signal_model}"
+    signal_model_dir = f"{data_dir}/classifier_consistency/{args.signal_model}"
     if is_benchmark:
         main_dir = f"{signal_model_dir}/benchmark"
     elif multiple_changed_params:
