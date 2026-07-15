@@ -150,7 +150,7 @@ def main():
     extract_script_path        = f"{generate_dir}/extract.py"
     nu_config_path      = f"{main_dir}/nu_config.yaml"
     noise_config_path   = f"{main_dir}/noise_config.yaml"
-    neutrino_dir           = f"{data_dir}/neutrinos/"
+    neutrino_dir           = f"{data_dir}/classifier_consistency/neutrinos/"
 
     # --- create dagman ---------------
     if is_benchmark:

@@ -49,7 +49,7 @@ VEFF_CONFIG = {
 NU_CONFIG = dict(
     r_km        = 3.0,
     n_files     = 100,
-    n_events    = 10_000,
+    n_events    = 30_000,
     log10_e_min = float(16),
     log10_e_max = float(21),
     spectrum    = "GZK-2+IceCube-nu-2022",
@@ -59,7 +59,7 @@ NU_CONFIG = dict(
 NOISE_CONFIG = dict(
     r_km     = 0.1,
     n_files  = 100,
-    n_events = 9_000,
+    n_events = 27_000,
 )
 
 # ── Shared geometry ───────────────────────────────────────────────────────────
