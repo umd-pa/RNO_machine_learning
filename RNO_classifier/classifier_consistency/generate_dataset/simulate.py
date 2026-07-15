@@ -12,9 +12,9 @@ import os
 def get_abs_path(rel_path):
     """
     Converts a relative path to an absolute path based on 
-    the location of THIS script (create_dagman.py).
+    the location of THIS script (simulate.py).
     """
-    # This gets the folder where create_dagman.py lives (e.g., .../jobs/)
+    # This gets the folder where simulate.py lives
     base = os.path.dirname(os.path.abspath(__file__))
     return os.path.abspath(os.path.join(base, rel_path))
 
