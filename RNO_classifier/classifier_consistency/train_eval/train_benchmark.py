@@ -7,7 +7,7 @@ Usage:
         --noise  noise.h5  \
         --out    runs/exp01 \
         [--arch  tiny]          \
-        [--crop_samples 512]    \
+        [--crop_samples]    \
         [--epochs 50]           \
         [--batch_size 256]      \
         [--lr 1e-3]             \
@@ -394,7 +394,7 @@ class ResBlock1d_plusplus(nn.Module):
 class RNO_resnet_plusplus(nn.Module):
     """
     Improved resnet+ architecture with batchnorm and dropout layer
-    Input:  (batch, 4, 1024)  ← Same as FpgaCNN!
+    Input:  (batch, 4, T)  ← Same as FpgaCNN!
     Output: (batch, 1)        ← Binary classification
     Params: 10,657
     Size: 829.00 MBs
