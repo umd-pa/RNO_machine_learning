@@ -331,7 +331,7 @@ class RNO_resnet(nn.Module):
 class RNO_resnet_plus(nn.Module):
     """
     Improved resnet architecture inspired by "Detection of Radar Pulse Signals Based on Deep Learning" by Fengyang Gu, et al.
-    Input:  (batch, 4, 1024)  ← Same as FpgaCNN!
+    Input:  (batch, 4, T)  ← Same as FpgaCNN!
     Output: (batch, 1)        ← Binary classification
     Params: 10,657
     Size: 829.00 MBs
