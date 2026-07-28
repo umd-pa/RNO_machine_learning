@@ -49,7 +49,7 @@ VEFF_CONFIG = {
 NU_CONFIG = dict(
     r_km        = 3.0,
     n_files     = 100,
-    n_events    = 30_000,
+    n_events    = 45_000,
     log10_e_min = float(16),
     log10_e_max = float(21),
     spectrum    = "GZK-2+IceCube-nu-2022",
@@ -59,7 +59,7 @@ NU_CONFIG = dict(
 NOISE_CONFIG = dict(
     r_km     = 0.1,
     n_files  = 100,
-    n_events = 27_000,
+    n_events = 40_500,
 )
 
 # ── Shared geometry ───────────────────────────────────────────────────────────
@@ -142,7 +142,7 @@ def run_noise(n_jobs, start_index, base_dir):
 
 def parse_args():
     p = argparse.ArgumentParser(description="Generate NuRadioMC input event lists.")
-    p.add_argument('data_dir', type=str,
+    p.add_argument('--data-dir', type=str,
                    help="Top-level data directory")
     p.add_argument('--jobs', type=int, default=1,
                    help="Number of parallel worker processes (default: 1)")
