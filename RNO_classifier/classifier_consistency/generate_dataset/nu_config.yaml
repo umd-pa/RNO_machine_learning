@@ -1,0 +1,14 @@
+noise: true
+sampling_rate: 5.0
+speedup:
+  minimum_weight_cut: 1.0e-05
+  delta_C_cut: 0.698
+propagation:
+  ice_model: greenland_simple
+  attenuation_model: GL3
+signal:
+  model: ARZ2020
+trigger:
+  noise_temperature: 300
+weights:
+  weight_mode: core_mantle_crust
