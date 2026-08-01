@@ -332,7 +332,7 @@ def parse_args():
     p.add_argument("--checkpoint", required=True)
     p.add_argument("--signal",     required=True, help="Signal HDF5 from extract.py")
     p.add_argument("--noise",      required=True, help="Noise  HDF5 from extract.py")
-    p.add_argument("--target_fpr", type=float, default=1e-3)
+    p.add_argument("--target_fpr", type=float, default=1e-5)
     p.add_argument("--out",        default=None)
     p.add_argument("--batch_size", type=int,   default=512)
     p.add_argument("--compare", required=False, action="store_true")
