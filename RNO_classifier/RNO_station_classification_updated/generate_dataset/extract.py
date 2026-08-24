@@ -1,0 +1,343 @@
+"""
+Stage 1: Extract raw waveforms from one or more .nur files in a directory into a single HDF5 file.
+
+Run once for signal, once for noise. If you want typical amplification (x1500) use:
+
+    python extract.py --input_dir /path/to/nur --label 1 --hw_resp SCALE --out signal.h5
+    python extract.py --input_dir /path/to/nur   --label 0 --hw_resp SCALE --out noise.h5
+
+--hw_resp options are:
+    APPLY: Apply full hardware response simulation (not functional with custom detectors, but will work with RNO-G single station!)
+    SCALE: Simply amplify signal by 1500
+    NONE: Do not apply any gain/hardware amp. It is assumed it was already applied during simulation
+
+--trigger:
+    Define which trigger (defined during simulation) to test if it triggered during simulation.
+    Default is rnog_phased_array_1.7Hz, but you may pass 'None' if not required to save a small amount of memory.
+
+Output HDF5 layout:
+    /waveforms   float32  (N, 4, T)  — raw voltage traces, channels 0–3
+    /labels      int8     (N,)       — 1=signal, 0=noise
+    /snr         float32  (N, 4)     — per-channel SNR (signal only; else NaN)
+    /energy      float32  (N,)       — neutrino energy in eV (signal only; else NaN)
+    /vertex      float32  (N, 3)     — interaction vertex x,y,z in m (signal only)
+    /weight      float32  (N,)       — MC event weight (signal only; else NaN)
+    /triggered   int8     (N,)       — Whether the given trigger triggered on an event or not (Optional)
+
+Full trace length is preserved. Cropping is done at train time.
+SNR = peak(noiseless) / RMS(noised – noiseless) when sim_station is available,
+      otherwise peak(noised) / RMS(noised).
+"""
+
+import argparse
+import sys
+import warnings
+from pathlib import Path
+import glob
+import os
+
+import h5py
+import numpy as np
+from tqdm import tqdm
+from enum import Enum, auto
+import gc
+
+try:
+    import NuRadioReco.modules.io.eventReader as _ev_reader_mod
+    from NuRadioReco.modules.RNO_G import hardwareResponseIncorporator
+    from NuRadioReco.detector.RNO_G import rnog_detector
+except ImportError:
+    sys.exit(
+        "ERROR: NuRadioReco not found.\n"
+        "  Activate the correct environment or: pip install NuRadioReco"
+    )
+
+from NuRadioReco.framework.parameters import particleParameters as pp
+
+
+NOISED_CHANNELS = [0, 1, 2, 3]
+SIM_CHANNELS    = [40, 41, 42, 43]
+
+
+# ── helpers ───────────────────────────────────────────────────────────────
+
+def _snr(noised: np.ndarray, noiseless: np.ndarray | None) -> np.ndarray:
+    """Per-channel SNR = V_p2p / (2 * noise_rms), shape (4,).
+    Noise RMS estimated from samples outside a T/2 window centred on the signal peak,
+    with wraparound so the window is always exactly T/2 samples.
+    """
+    snr = np.zeros(4, dtype=np.float32)
+    for i in range(4):
+        if noiseless is not None:
+            v_p2p    = np.max(noiseless[i]) - np.min(noiseless[i])
+            T        = len(noised[i])
+            half     = T // 2
+            peak_idx = np.argmax(np.abs(noiseless[i]))
+            signal_indices = np.arange(peak_idx - half // 2,
+                                       peak_idx - half // 2 + half) % T
+            mask = np.ones(T, dtype=bool)
+            mask[signal_indices] = False
+            noise_samples = noised[i][mask]
+            noise_rms = np.sqrt(np.mean(noise_samples ** 2)) if len(noise_samples) > 0 else 0.0
+            snr[i] = v_p2p / (2 * noise_rms) if noise_rms > 0 else 0.0
+        else:
+            v_p2p     = np.max(noised[i]) - np.min(noised[i])
+            noise_rms = np.sqrt(np.mean(noised[i] ** 2))
+            snr[i]    = v_p2p / (2 * noise_rms) if noise_rms > 0 else 0.0
+    return snr
+
+# ── det finder ────────────────────────────────────────────────────────────
+
+def _path_to_det():
+    """Quick helper function to find the detector file assuming the detector is inside RNO_classifier/generate/station.json
+
+    Returns:
+        Path: Path to detector
+    """
+    script_path = Path(__file__).resolve()
+    det_path = script_path.parent.parent / 'generate' / 'station.json'
+    return str(det_path)
+
+
+# ── event iterator ────────────────────────────────────────────────────────────
+
+class HardwareResponse(Enum):
+    APPLY = auto()  # run hardware response + detector
+    SCALE = auto()  # multiply by 1500 (no detector)
+    NONE  = auto()  # pass through raw traces
+
+    def scale_factor(self) -> float:
+        return 1500.0 if self is HardwareResponse.SCALE else 1.0
+
+    def needs_detector(self) -> bool:
+        return self is HardwareResponse.APPLY
+
+
+def iter_events(nur_path: str, label: int, hw_resp: HardwareResponse, trigger: str | None = None):
+    reader = _ev_reader_mod.eventReader()
+    reader.begin(nur_path)
+
+    hardware_response = None
+    det_RNOG = None
+
+    if hw_resp.needs_detector():
+        print('Adding hardware response...')
+        hardware_response = hardwareResponseIncorporator.hardwareResponseIncorporator()
+        hardware_response.begin()
+        det_RNOG = rnog_detector.Detector(detector_file=_path_to_det())
+
+    for event in reader.run():
+        stations = list(event.get_stations())
+        if not stations:
+            continue
+        station = stations[0]
+        triggered = None
+        if trigger:
+            triggered = 1 if station.get_triggers()[trigger].has_triggered() else 0
+
+
+        if hw_resp.needs_detector() and hardware_response is not None:
+            hardware_response.run(event, station, det_RNOG, sim_to_data=True)
+
+        scale = hw_resp.scale_factor()
+
+        ch_data = {
+            ch.get_id(): ch.get_trace().astype(np.float32) * scale
+            for ch in station.iter_channels()
+            if ch.get_id() in NOISED_CHANNELS
+        }
+        if len(ch_data) < 4:
+            warnings.warn(f"Skipping event: only found channels {list(ch_data.keys())}")
+            continue
+
+        noised = np.stack([ch_data[c] for c in NOISED_CHANNELS])
+
+        noiseless = None
+        if label==1:
+            sim_data = {
+                c.get_id(): c.get_trace().astype(np.float32) * scale
+                for c in station.iter_channels()
+                if c.get_id() in SIM_CHANNELS
+            }
+            if len(sim_data) == 4:
+                noiseless = np.stack([sim_data[c] for c in SIM_CHANNELS])
+
+        snr    = _snr(noised, noiseless)
+
+        energy = vertex = weight = None
+        if label == 1:
+            primary = event.get_primary()
+            if primary is not None:
+                energy = primary.get_parameter(pp.energy)
+                weight = primary.get_parameter(pp.weight)
+                vertex = np.array(primary.get_parameter(pp.vertex), dtype=np.float32)[:3]
+
+        output = {
+            "waveform": noised,
+            "snr":      snr,
+            "energy":   np.float32(energy if energy is not None else float("nan")),
+            "vertex":   vertex if vertex is not None else np.full(3, float("nan"), np.float32),
+            "weight":   np.float32(weight if weight is not None else float("nan")),
+            "label":    np.int8(label)
+        }
+
+        if triggered is not None:
+                output['triggered'] = np.int8(triggered) 
+        yield output
+
+    reader.end()
+    del reader
+    if hardware_response is not None:
+        del hardware_response
+    if det_RNOG is not None:
+        del det_RNOG
+    gc.collect()
+
+
+# ── pre-scan ──────────────────────────────────────────────────────────────────
+
+def count_valid_events(nur_paths: list[str], trigger: str | None) -> tuple[int, int | None]:
+    """Return (total_n_valid, T) across all files."""
+    total, T = 0, None
+    for path in nur_paths:
+        print(f"Pre-scanning {path} …")
+        reader = _ev_reader_mod.eventReader()
+        reader.begin(path)
+        for event in reader.run():
+            stations = list(event.get_stations())
+            if not stations:
+                continue
+            station = stations[0]
+            if trigger is not None and trigger not in station.get_triggers():
+                raise ValueError(
+                    f"Trigger {trigger!r} completely missing from station triggers in {path}."
+                    f"Available options are: {sorted(station.get_triggers().keys())}"
+                )
+            ch_ids = [ch.get_id() for ch in station.iter_channels()]
+            if all(c in ch_ids for c in NOISED_CHANNELS):
+                if T is None:
+                    for ch in station.iter_channels():
+                        if ch.get_id() == 0:
+                            T = len(ch.get_trace())
+                            break
+                total += 1
+        reader.end()
+        del reader
+        gc.collect()
+    return total, T
+
+# ── writer  ────────────────────────────────────────────────────────────────────
+
+def write_hdf5(nur_paths: list[str], label: int, out_path: str, hw_resp: HardwareResponse = HardwareResponse.NONE, trigger: str | None = None):
+    # 1. Pre-scan all files to determine total shape upfront
+    n, T = count_valid_events(nur_paths, trigger)
+    if n == 0:
+        sys.exit("ERROR: no valid events found.")
+    print(f"Total events: {n}   Trace length: {T} samples")
+
+    chunk_size = min(256, n)
+
+    with h5py.File(out_path, "w") as f:
+        # Create datasets using the complete total 'n'
+        ds_wav = f.create_dataset("waveforms", shape=(n, 4, T), dtype=np.float32,
+                                  maxshape=(None, 4, T), chunks=(chunk_size, 4, T))
+        ds_lbl = f.create_dataset("labels", shape=(n,), dtype=np.int8,
+                                   maxshape=(None,), chunks=(chunk_size,))
+        ds_snr = f.create_dataset("snr", shape=(n, 4), dtype=np.float32,
+                                   maxshape=(None, 4), chunks=(chunk_size, 4))
+        ds_nrg = f.create_dataset("energy", shape=(n,), dtype=np.float32,
+                                   maxshape=(None,), chunks=(chunk_size,))
+        ds_vtx = f.create_dataset("vertex", shape=(n, 3), dtype=np.float32,
+                                   maxshape=(None, 3), chunks=(chunk_size, 3))
+        ds_wgt = f.create_dataset("weight", shape=(n,), dtype=np.float32,
+                                   maxshape=(None,), chunks=(chunk_size,))
+        if trigger is not None:
+            ds_trg = f.create_dataset("triggered", shape=(n,), dtype=np.int8, 
+                                      maxshape=(None,), chunks=(chunk_size,))
+
+        f.attrs["label"]     = label
+        f.attrs["trace_len"] = T
+
+        i = 0
+        buffer = []
+        
+        # Loop over every single file sequentially
+        for path in nur_paths:
+            for ev in tqdm(iter_events(path, label, hw_resp=hw_resp, trigger=trigger), desc=Path(path).name):
+                buffer.append(ev)
+                
+                if len(buffer) >= chunk_size:
+                    num = len(buffer)
+                    ds_wav[i : i + num] = np.stack([e["waveform"] for e in buffer])
+                    ds_lbl[i : i + num] = [e["label"] for e in buffer]
+                    ds_snr[i : i + num] = np.stack([e["snr"] for e in buffer])
+                    ds_nrg[i : i + num] = [e["energy"] for e in buffer]
+                    ds_vtx[i : i + num] = np.stack([e["vertex"] for e in buffer])
+                    ds_wgt[i : i + num] = [e["weight"] for e in buffer]
+                    if trigger is not None:
+                        ds_trg[i : i + num] = [e["triggered"] for e in buffer]
+                    i += num
+                    buffer.clear()
+            
+            if buffer:
+                num = len(buffer)
+                ds_wav[i : i + num] = np.stack([e["waveform"] for e in buffer])
+                ds_lbl[i : i + num] = [e["label"] for e in buffer]
+                ds_snr[i : i + num] = np.stack([e["snr"] for e in buffer])
+                ds_nrg[i : i + num] = [e["energy"] for e in buffer]
+                ds_vtx[i : i + num] = np.stack([e["vertex"] for e in buffer])
+                ds_wgt[i : i + num] = [e["weight"] for e in buffer]
+                if trigger is not None:
+                    ds_trg[i : i + num] = [e["triggered"] for e in buffer]
+                i += num
+                buffer.clear()
+                
+            gc.collect()
+
+        # Dynamic cleanup: If any event warnings skipped records, shrink datasets to match exactly what was written
+        if i < n:
+            ds_wav.resize((i, 4, T))
+            ds_lbl.resize((i,))
+            ds_snr.resize((i, 4))
+            ds_nrg.resize((i,))
+            ds_vtx.resize((i, 3))
+            ds_wgt.resize((i,))
+            if trigger is not None:
+                ds_trg.resize((i,))
+
+        f.attrs["n_events"] = i
+
+    print(f"Saved {i} total events → {out_path}")
+
+
+# ── CLI ───────────────────────────────────────────────────────────────────────
+
+def main():
+    p = argparse.ArgumentParser(description=__doc__,
+                                formatter_class=argparse.RawDescriptionHelpFormatter)
+    p.add_argument("--input_dir", required=True, help="directory with .nur file(s) to extract")
+    p.add_argument("--label", required=True, type=int, choices=[0, 1],
+                   help="1 = signal, 0 = noise")
+    p.add_argument("--hw_resp", choices=[m.name for m in HardwareResponse], default="NONE", help="Hardware response mode (default: NONE)")
+    p.add_argument("--trigger", default='rnog_phased_array_1.7Hz', help="Name of the simulated trigger to run (e.g., 'rnog_phased_array_1.7Hz' or 'None'). Saves a 1 if the trigger fires, or a 0 if it does not.")
+    p.add_argument("--out",   required=True, help="Output HDF5 path")
+    args = p.parse_args()
+
+    if os.path.isdir(args.input_dir):
+        input_files = glob.glob(os.path.join(args.input_dir, "*.nur"))
+    else:
+        sys.exit(f"ERROR: Directory not found or is not a valid directory: {args.input_dir}")
+
+    if not input_files:
+        sys.exit(f"ERROR: No .nur files found in input directory {args.input_dir}")
+    
+    if args.trigger is not None and args.trigger.strip().upper() == 'NONE':
+        args.trigger = None
+
+    hw_resp = HardwareResponse[args.hw_resp]
+    print(args.trigger)
+    input_files.sort()
+    write_hdf5(input_files, args.label, args.out, hw_resp=hw_resp, trigger=args.trigger)
+
+if __name__ == "__main__":
+    main()

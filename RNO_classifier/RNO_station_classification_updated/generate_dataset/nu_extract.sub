@@ -1,0 +1,33 @@
+# ----------------------------------------------------------------------
+# extract.sub
+# ----------------------------------------------------------------------
+universe = vanilla
+VENV = $(venv)
+executable = $(VENV)
+
+# Mimicking Slurm hardware requirements
+request_cpus = 1
+request_memory = 3G
+request_disk = 3G
+
+# ----------------------------------------------------------------------
+# PATH DEFINITIONS
+# ----------------------------------------------------------------------
+IN_DIR = $(in_dir)
+OUT_DIR = $(output_main)/nu
+
+SCRIPT_PATH = $(extract_path)
+
+# ----------------------------------------------------------------------
+# EXECUTION COMMAND
+# ----------------------------------------------------------------------
+arguments = "$(SCRIPT_PATH) --input_dir $(IN_DIR) --label 1 --out $(OUT_DIR)/nu_extracted.hdf5"
+
+# ----------------------------------------------------------------------
+# HOUSEKEEPING
+# ----------------------------------------------------------------------
+output = $(OUT_DIR)/logs/extract.out
+error  = $(OUT_DIR)/logs/extract.err
+log    = $(OUT_DIR)/logs/extract.log
+
+queue 1

@@ -56,6 +56,9 @@ try:
 except ImportError:
     sys.exit("ERROR: could not import from step2_train.py. Run from the same directory.")
 
+benchmark_threshold = .994233
+# The threshold selected by the model when evaluating the benchmark dataset. If you are evaluating the model's performance on different systematics (--compare)
+# then you should use the same threshold the model chose for the original dataset.
 
 # ── inference ─────────────────────────────────────────────────────────────────
 
@@ -438,6 +441,8 @@ def main():
     roc_auc = auc(fpr_arr, tpr_arr)
     threshold, op_fpr, op_tpr = threshold_at_fpr(
         fpr_arr, tpr_arr, thresholds, args.target_fpr)
+    if args.compare:
+        threshold = benchmark_threshold
 
     plot_roc(fpr_arr, tpr_arr, roc_auc, op_fpr, op_tpr,
              args.target_fpr, out_dir / "roc_curve.png")
