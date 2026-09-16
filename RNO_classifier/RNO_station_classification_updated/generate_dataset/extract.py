@@ -55,7 +55,7 @@ except ImportError:
 from NuRadioReco.framework.parameters import particleParameters as pp
 
 
-NOISED_CHANNELS = [0, 1, 2, 3]
+NOISED_CHANNELS = [30, 31, 32, 33]
 SIM_CHANNELS    = [40, 41, 42, 43]
 
 
@@ -85,6 +85,18 @@ def _snr(noised: np.ndarray, noiseless: np.ndarray | None) -> np.ndarray:
             noise_rms = np.sqrt(np.mean(noised[i] ** 2))
             snr[i]    = v_p2p / (2 * noise_rms) if noise_rms > 0 else 0.0
     return snr
+
+def digitize(values, bits=14, v_min=-.5, v_max=.5):
+    """Simulate digitization to N bits with given voltage range."""
+    values = np.clip(values,v_min,v_max) # Clip
+    # Quantize to integer levels
+    levels = 2**bits - 1  # e.g., 16383 for 14-bit
+    # Scale to [0, levels]
+    scaled = (values - v_min) / (v_max - v_min) * levels
+    # Round to nearest integer
+    digitized = np.round(scaled).astype(int)
+    # Convert back to voltage
+    return digitized / levels * (v_max - v_min) + v_min
 
 # ── det finder ────────────────────────────────────────────────────────────
 
@@ -131,10 +143,14 @@ def iter_events(nur_path: str, label: int, hw_resp: HardwareResponse, trigger: s
         if not stations:
             continue
         station = stations[0]
-        triggered = None
-        if trigger:
-            triggered = 1 if station.get_triggers()[trigger].has_triggered() else 0
+        triggered = np.zeros(len(trigger))
+        for idx, trig in enumerate(trigger):
+            if trig in station.get_triggers():
+                triggered[idx] = 1 if station.get_triggers()[trig].has_triggered() else 0
 
+        # skipping method to only save events which satisfied tuned_threshold
+        if triggered[0] == 0:
+            continue
 
         if hw_resp.needs_detector() and hardware_response is not None:
             hardware_response.run(event, station, det_RNOG, sim_to_data=True)
@@ -150,9 +166,9 @@ def iter_events(nur_path: str, label: int, hw_resp: HardwareResponse, trigger: s
             warnings.warn(f"Skipping event: only found channels {list(ch_data.keys())}")
             continue
 
-        noised = np.stack([ch_data[c] for c in NOISED_CHANNELS])
+        noised_undigitized = np.stack([ch_data[c] for c in NOISED_CHANNELS])
 
-        noiseless = None
+        noiseless_undigitized = None
         if label==1:
             sim_data = {
                 c.get_id(): c.get_trace().astype(np.float32) * scale
@@ -160,9 +176,9 @@ def iter_events(nur_path: str, label: int, hw_resp: HardwareResponse, trigger: s
                 if c.get_id() in SIM_CHANNELS
             }
             if len(sim_data) == 4:
-                noiseless = np.stack([sim_data[c] for c in SIM_CHANNELS])
-
-        snr    = _snr(noised, noiseless)
+                noiseless_undigitized = np.stack([sim_data[c] for c in SIM_CHANNELS])
+        snr    = _snr(noised_undigitized, noiseless_undigitized)
+        noised = digitize(noised_undigitized)
 
         energy = vertex = weight = None
         if label == 1:
@@ -199,6 +215,7 @@ def iter_events(nur_path: str, label: int, hw_resp: HardwareResponse, trigger: s
 def count_valid_events(nur_paths: list[str], trigger: str | None) -> tuple[int, int | None]:
     """Return (total_n_valid, T) across all files."""
     total, T = 0, None
+    missing_triggers = set()
     for path in nur_paths:
         print(f"Pre-scanning {path} …")
         reader = _ev_reader_mod.eventReader()
@@ -208,16 +225,25 @@ def count_valid_events(nur_paths: list[str], trigger: str | None) -> tuple[int, 
             if not stations:
                 continue
             station = stations[0]
-            if trigger is not None and trigger not in station.get_triggers():
-                raise ValueError(
-                    f"Trigger {trigger!r} completely missing from station triggers in {path}."
-                    f"Available options are: {sorted(station.get_triggers().keys())}"
-                )
+            if trigger is not None:
+                missing = [t for t in trigger if t not in station.get_triggers()]
+                if missing:
+                    key = (path, tuple(missing))
+                    if key not in missing_triggers:
+                        warnings.warn(
+                            f"Trigger(s) {missing} missing in {path}. "
+                            f"Will be recorded as 0. Available: {sorted(station.get_triggers())}"
+                        )
+                        missing_triggers.add(key)
+                if "tuned_threshold" not in station.get_triggers():
+                    continue
+                if not station.get_triggers()["tuned_threshold"].has_triggered():
+                    continue
             ch_ids = [ch.get_id() for ch in station.iter_channels()]
             if all(c in ch_ids for c in NOISED_CHANNELS):
                 if T is None:
                     for ch in station.iter_channels():
-                        if ch.get_id() == 0:
+                        if ch.get_id() == NOISED_CHANNELS[0]:
                             T = len(ch.get_trace())
                             break
                 total += 1
@@ -252,8 +278,9 @@ def write_hdf5(nur_paths: list[str], label: int, out_path: str, hw_resp: Hardwar
         ds_wgt = f.create_dataset("weight", shape=(n,), dtype=np.float32,
                                    maxshape=(None,), chunks=(chunk_size,))
         if trigger is not None:
-            ds_trg = f.create_dataset("triggered", shape=(n,), dtype=np.int8, 
-                                      maxshape=(None,), chunks=(chunk_size,))
+            ds_trg = f.create_dataset("triggered", shape=(n, len(trigger)), dtype=np.int8, 
+                                      maxshape=(None, len(trigger)), chunks=True)
+            f.attrs["trigger_names"] = np.array(trigger, dtype=h5py.string_dtype(encoding='utf-8'))
 
         f.attrs["label"]     = label
         f.attrs["trace_len"] = T
@@ -303,7 +330,7 @@ def write_hdf5(nur_paths: list[str], label: int, out_path: str, hw_resp: Hardwar
             ds_vtx.resize((i, 3))
             ds_wgt.resize((i,))
             if trigger is not None:
-                ds_trg.resize((i,))
+                ds_trg.resize((i, len(trigger)))
 
         f.attrs["n_events"] = i
 
@@ -319,10 +346,12 @@ def main():
     p.add_argument("--label", required=True, type=int, choices=[0, 1],
                    help="1 = signal, 0 = noise")
     p.add_argument("--hw_resp", choices=[m.name for m in HardwareResponse], default="NONE", help="Hardware response mode (default: NONE)")
-    p.add_argument("--trigger", default='rnog_phased_array_1.7Hz', help="Name of the simulated trigger to run (e.g., 'rnog_phased_array_1.7Hz' or 'None'). Saves a 1 if the trigger fires, or a 0 if it does not.")
+    p.add_argument("--trigger", nargs="+", default=['rnog_phased_array_1.7Hz'], help="Name of the simulated trigger to run (e.g., 'rnog_phased_array_1.7Hz' or 'None'). Saves a 1 if the trigger fires, or a 0 if it does not.")
     p.add_argument("--out",   required=True, help="Output HDF5 path")
     args = p.parse_args()
 
+    if args.trigger is None or args.trigger[0] != "tuned_threshold":
+        sys.exit("ERROR: --trigger must list 'tuned_threshold' first in --trigger list")
     if os.path.isdir(args.input_dir):
         input_files = glob.glob(os.path.join(args.input_dir, "*.nur"))
     else:
@@ -331,7 +360,7 @@ def main():
     if not input_files:
         sys.exit(f"ERROR: No .nur files found in input directory {args.input_dir}")
     
-    if args.trigger is not None and args.trigger.strip().upper() == 'NONE':
+    if args.trigger is not None and len(args.trigger)==1 and args.trigger[0].strip().upper() == 'NONE':
         args.trigger = None
 
     hw_resp = HardwareResponse[args.hw_resp]

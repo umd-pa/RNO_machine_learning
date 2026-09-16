@@ -21,7 +21,7 @@ SCRIPT_PATH = $(extract_path)
 # ----------------------------------------------------------------------
 # EXECUTION COMMAND
 # ----------------------------------------------------------------------
-arguments = "$(SCRIPT_PATH) --input_dir $(IN_DIR) --label 1 --out $(OUT_DIR)/nu_extracted.hdf5"
+arguments = "$(SCRIPT_PATH) --input_dir $(IN_DIR) --label 1 --out $(OUT_DIR)/nu_extracted.hdf5 --trigger tuned_threshold rnog_phased_array_1.7Hz pa_power_sigma3.0 deep_high_low_sigma3.7"
 
 # ----------------------------------------------------------------------
 # HOUSEKEEPING

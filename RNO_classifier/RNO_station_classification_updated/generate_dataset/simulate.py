@@ -21,13 +21,15 @@ import NuRadioReco.modules.trigger.simpleThreshold
 import NuRadioReco.modules.phasedarray.phasedArrayTrigger
 
 import logging
+import matplotlib.pyplot as plt
 logger = logging.getLogger("NuRadioMC.RNOG_trigger_simulation")
 logger.setLevel(logging.INFO)
 
 
 deep_trigger_channels = np.array([0, 1, 2, 3])
-duplicate_channels = np.array([40, 41, 42 ,43])
-trace_channels = np.concatenate([deep_trigger_channels, duplicate_channels])
+noised_channels = np.array([30, 31, 32, 33])
+noiseless_channels = np.array([40, 41 ,42 ,43])
+trace_channels = np.concatenate([deep_trigger_channels, noised_channels, noiseless_channels])
 
 def get_abs_path(rel_path):
     """
@@ -112,12 +114,14 @@ def detector_simulation(evt, station, det, noise_vrms, max_freq, add_noise=True)
     max_freq : float
         The maximum frequency for the noise, i.e., the nyquist frequency for the simulated sampling rate.
     """
-
     efieldToVoltageConverter.run(evt, station, det, channel_ids=trace_channels)
+
     if add_noise:
         channelGenericNoiseAdder.run(
             evt, station, det, amplitude=noise_vrms, min_freq=0 * units.MHz,
-            max_freq=max_freq, type='rayleigh', excluded_channels=duplicate_channels)
+            max_freq=max_freq, type='rayleigh', 
+            excluded_channels=noiseless_channels
+            )
 
     rnogHardwareResponse.run(evt, station, det, sim_to_data=True)
 
@@ -327,9 +331,7 @@ class mySimulation(simulation.simulation):
 
         super().__init__(**kwargs)  # this calls self._det.update(self._evt_time) internally
 
-        self.high_low_trigger_thresholds = {
-            "sigma3.7": 3.7,
-        }
+        self.high_low_trigger_thresholds = {"sigma3.7": 3.7,}
         self.pa_power_trigger_threshold = {"sigma3.0": 3.0}
 
         # computed here (after super().__init__) so it uses the detector as updated by the base class,
@@ -352,19 +354,23 @@ class mySimulation(simulation.simulation):
         for idx, trigger_channel in enumerate(deep_trigger_channels):
             self._Vrms_per_trigger_channel[station.get_id()][trigger_channel] = vrms_after_gain[idx]
 
-        # Digitize the duplicate channels too, using the same nominal Vrms as the real deep channels
-        duplicate_vrms_after_gain = rnogADCResponse.run(
-            evt, station, det,
-            trigger_channels=duplicate_channels,
-            vrms=self.trigger_channel_noise_vrms,   # same nominal Vrms as channels 0-3
-            digitize_trace=True,
+
+        self._Vrms_dup = self._Vrms_per_channel[station.get_id()][int(noised_channels[0])]
+        print(f"Amplitude Threshold of tuned_threshold from VRMS dup: {self.threshold*self._Vrms_dup}")
+        threshold_value = self.threshold * self._Vrms_per_channel[station.get_id()][self.trig_chan]
+        scaling_vrms = self._Vrms_per_channel[station.get_id()][self.trig_chan]
+
+        logger.info(
+            "Amplitude Threshold of tuned_threshold from trig chan VRMS: %.6f mV",
+            threshold_value / units.mV,
+        )
+        logger.info(
+            "VRMS scaling factor: %.6f mV",
+            scaling_vrms / units.mV,
         )
 
-        for idx, trigger_channel in enumerate(duplicate_channels):
-            self._Vrms_per_trigger_channel[station.get_id()][trigger_channel] = duplicate_vrms_after_gain[idx]
-
         simpleThreshold.run(evt, station, det,
-                             threshold=self.threshold * self._Vrms_per_trigger_channel[station.get_id()][self.trig_chan],
+                             threshold=threshold_value,
                              triggered_channels=[self.trig_chan],
                              number_concidences=1,
                              pre_trigger_time=1000 * units.ns,
@@ -372,11 +378,13 @@ class mySimulation(simulation.simulation):
 
         # RNO-G phased array. Trigger threshold calculated using T01MeasureNoiselevel.py in phased array
         phasedArrayTrigger.run(evt, station, det,
-                                threshold=38 * np.power(self._Vrms_per_trigger_channel[station.get_id()][self.trig_chan], 2.0),
-                                triggered_channels=duplicate_channels,
+                                threshold=38 * np.power(scaling_vrms, 2.0),
+                                triggered_channels=noiseless_channels,
                                 trigger_name='rnog_phased_array_1.7Hz',
-                                apply_digitization=False  # We already handle digitization
+                                apply_digitization=False  # We already handle digitization later
                                 )
+        for trig_name, trig in station.get_triggers().items():
+            print(f"{trig_name}: triggered={trig.has_triggered()}")
 
 
 parser = argparse.ArgumentParser(description='Run NuRadioMC simulation')
@@ -413,6 +421,10 @@ if __name__ == "__main__":
                 1: False,
                 2: False,
                 3: False,
+                30: False,
+                31: False,
+                32: False,
+                33: False,
                 40: True,
                 41: True,
                 42: True,
@@ -431,7 +443,7 @@ if __name__ == "__main__":
                                 threshold=args.threshold,
                                 trig_chan=args.trig_chan,
                                 station_id=args.station_id,
-                                trigger_channels=deep_trigger_channels,
+                                trigger_channels=trace_channels,
                                 use_cpp=True,
                                 )
     logger.info(f"Trigger channel noise vrms (used for the definition of the trigger threshold): "
