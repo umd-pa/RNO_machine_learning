@@ -309,6 +309,10 @@ class mySimulation(simulation.simulation):
                 temperature=tmp_config['trigger']['noise_temperature'],
                 bandwidth=tmp_config["sampling_rate"] / 2,
             )
+            logger.info(
+                "NuRadioMC's Noise VRMS (before sim): %.6f mV",
+                noise_vrms / units.mV,
+            )
             detector_simulation(
                 *args,
                 **kwargs_inner,
@@ -354,35 +358,67 @@ class mySimulation(simulation.simulation):
         for idx, trigger_channel in enumerate(deep_trigger_channels):
             self._Vrms_per_trigger_channel[station.get_id()][trigger_channel] = vrms_after_gain[idx]
 
-
-        self._Vrms_dup = self._Vrms_per_channel[station.get_id()][int(noised_channels[0])]
-        print(f"Amplitude Threshold of tuned_threshold from VRMS dup: {self.threshold*self._Vrms_dup}")
         threshold_value = self.threshold * self._Vrms_per_channel[station.get_id()][self.trig_chan]
-        scaling_vrms = self._Vrms_per_channel[station.get_id()][self.trig_chan]
 
-        logger.info(
-            "Amplitude Threshold of tuned_threshold from trig chan VRMS: %.6f mV",
-            threshold_value / units.mV,
-        )
-        logger.info(
-            "VRMS scaling factor: %.6f mV",
-            scaling_vrms / units.mV,
-        )
 
         simpleThreshold.run(evt, station, det,
                              threshold=threshold_value,
                              triggered_channels=[self.trig_chan],
                              number_concidences=1,
-                             pre_trigger_time=1000 * units.ns,
+                             pre_trigger_time=200 * units.ns,
                              trigger_name='tuned_threshold')
+        station.get_trigger('tuned_threshold').set_primary(True)
+
+        internal_noise_vrms = self._Vrms_per_channel[station.get_id()][self.trig_chan]
+        internal_noise_vrms_30 = self._Vrms_per_channel[station.get_id()][int(noised_channels[0])]
 
         # RNO-G phased array. Trigger threshold calculated using T01MeasureNoiselevel.py in phased array
         phasedArrayTrigger.run(evt, station, det,
-                                threshold=38 * np.power(scaling_vrms, 2.0),
+                                threshold=38 * np.power(internal_noise_vrms, 2.0),
                                 triggered_channels=noiseless_channels,
                                 trigger_name='rnog_phased_array_1.7Hz',
                                 apply_digitization=False  # We already handle digitization later
                                 )
+
+        if not station.has_triggered('tuned_threshold'):
+            return
+
+        ch40_trace = station.get_channel(40).get_trace().astype(np.float32)
+        ch30_trace = station.get_channel(30).get_trace().astype(np.float32)
+
+        def est_noise_vrms(trace):
+            half = len(trace) // 2
+            peak_idx = np.argmax(np.abs(trace))
+            signal_indices = np.arange(peak_idx - half // 2,
+                                        peak_idx - half // 2 + half) % len(trace)
+            mask = np.ones(len(trace), dtype=bool)
+            mask[signal_indices] = False
+            noise_samples = trace[mask]
+            return np.sqrt(np.mean(noise_samples ** 2))
+        
+
+        ch40_max_amp = np.max(ch40_trace)
+        ch30_max_amp = np.max(ch30_trace)
+
+        logger.info(
+            "Ch40 NuRadioMC's Noise VRMS (during sim): %.6f mV",
+            internal_noise_vrms / units.mV,
+        )
+        logger.info(
+            "Ch40 Amplitude Threshold of tuned_threshold from trig chan VRMS: %.6f mV, Max amplitude: %.6f mV",
+            threshold_value / units.mV,
+            ch40_max_amp / units.mV,
+        )
+        logger.info(
+            "Ch30 (NOISED) max amplitude: %.6f mV",
+            ch30_max_amp / units.mV,
+        )
+        logger.info(
+            "Ch30 NuRadioMC's Noise VRMS: %.6f mV, Actual Noise VRMS: %.6f mV",
+            internal_noise_vrms_30 / units.mV,
+            est_noise_vrms(ch30_trace) / units.mV,
+        )
+
         for trig_name, trig in station.get_triggers().items():
             print(f"{trig_name}: triggered={trig.has_triggered()}")
 
