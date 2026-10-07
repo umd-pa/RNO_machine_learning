@@ -8,6 +8,10 @@ from NuRadioReco.utilities import units
 from NuRadioMC.simulation import simulation
 import numpy as np
 import os
+import logging
+
+logger = logging.getLogger("NuRadioMC.RNOG_trigger_simulation")
+logger.setLevel(logging.INFO)
 
 def get_abs_path(rel_path):
     """
@@ -36,6 +40,17 @@ class mySimulation(simulation.simulation):
         hardware_response.run(evt, station, det, sim_to_data=True, path=self.path)
 
     def _detector_simulation_trigger(self, evt, station, det):
+
+        threshold_value = self.threshold * self._Vrms
+        scaling_vrms = self._Vrms
+        logger.info(
+            "Amplitude Threshold of tuned_threshold: %.6f mV",
+            threshold_value / units.mV,
+        )
+        logger.info(
+            "VRMS scaling factor: %.6f mV",
+            scaling_vrms / units.mV,
+        )
 
         # simple threshold trigger, becomes the primary trigger because it always triggers first
         simpleThreshold.run(evt, station, det,

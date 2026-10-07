@@ -48,7 +48,7 @@ channelGenericNoiseAdder = NuRadioReco.modules.channelGenericNoiseAdder.channelG
 channelGenericNoiseAdder.begin()
 
 rnogHardwareResponse = hardwareResponseIncorporator.hardwareResponseIncorporator()
-rnogHardwareResponse.begin(trigger_channels=trace_channels)
+rnogHardwareResponse.begin(trigger_channels=deep_trigger_channels)
 
 highLowThreshold = highLowThreshold.triggerSimulator()
 rnogADCResponse = triggerBoardResponse.triggerBoardResponse(log_level=logging.INFO)
@@ -359,7 +359,8 @@ class mySimulation(simulation.simulation):
             self._Vrms_per_trigger_channel[station.get_id()][trigger_channel] = vrms_after_gain[idx]
 
         threshold_value = self.threshold * self._Vrms_per_channel[station.get_id()][self.trig_chan]
-
+        print(f"Channel 0 trigger channel VRMS = {vrms_after_gain[0]} mV")
+        print(f"Channel 0 regular RADIANT channel VRMS = {self._Vrms_per_channel[station.get_id()][0]} mV")
 
         simpleThreshold.run(evt, station, det,
                              threshold=threshold_value,

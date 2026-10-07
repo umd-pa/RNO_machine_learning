@@ -346,7 +346,7 @@ def main():
     p.add_argument("--label", required=True, type=int, choices=[0, 1],
                    help="1 = signal, 0 = noise")
     p.add_argument("--hw_resp", choices=[m.name for m in HardwareResponse], default="NONE", help="Hardware response mode (default: NONE)")
-    p.add_argument("--trigger", nargs="+", default=['tuned_threshold','rnog_phased_array_1.7Hz'], help="Name of the simulated trigger to run (e.g., 'rnog_phased_array_1.7Hz' or 'None'). Saves a 1 if the trigger fires, or a 0 if it does not.")
+    p.add_argument("--trigger", nargs="+", default=["tuned_threshold","rnog_phased_array_1.7Hz", "pa_power_sigma3.0", "deep_high_low_sigma3.7"], help="Name of the simulated trigger to run (e.g., 'rnog_phased_array_1.7Hz' or 'None'). Saves a 1 if the trigger fires, or a 0 if it does not.")
     p.add_argument("--out",   required=True, help="Output HDF5 path")
     args = p.parse_args()
     
