@@ -516,7 +516,9 @@ def parse_args():
                    help=f"Model architecture: {list(ARCH_REGISTRY)}")
     p.add_argument("--crop_samples", type=int, default=None,
                    help="Centre-crop traces to N samples (default: full trace)")
-    p.add_argument("--epochs",       type=int,   default=100)
+    p.add_argument("--epochs",       type=int,   default=5000)
+    p.add_argument("--n_events",     type=int, default=None,
+                   help="Use this many events per class (default: all)")
     p.add_argument("--batch_size",   type=int,   default=256)
     p.add_argument("--lr",           type=float, default=3e-4)
     p.add_argument("--val_frac",     type=float, default=0.15)
@@ -577,7 +579,9 @@ def main():
         with h5py.File(h5_path, "r") as f:
             n = f.attrs["n_events"]
         idx = rng.permutation(int(n))
-        n_val = max(1, int(n * args.val_frac))
+        if args.n_events is not None:
+            idx = idx[:args.n_events]
+        n_val = max(1, int(len(idx) * args.val_frac))
         return idx[n_val:], idx[:n_val]   # train, val
 
     sig_train_idx, sig_val_idx = split_indices(args.signal)
